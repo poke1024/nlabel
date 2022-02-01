@@ -10,7 +10,7 @@ from typing import List, Union
 
 from nlabel.io.common import save_archive
 from nlabel.io.json.loader import Loader
-from nlabel.io.json.collection import Collection
+from nlabel.io.json.group import Group
 from nlabel.io.json.archive import Archive as AbstractArchive
 from nlabel.nlp.core import Text as CoreText
 from nlabel.nlp.nlp import NLP as CoreNLP
@@ -61,7 +61,7 @@ def _result_to_doc(result, vectors=True, migrate=None):
             vectors_data[vectors.name] = np.array(arr)
         json_data['vectors'] = [vectors_data]
 
-    return Collection(json_data)
+    return Group(json_data)
 
 
 class Exporter:
@@ -98,7 +98,7 @@ class Exporter:
                             'error': json.loads(result.content)
                         }]
                     }
-                    docs.append(Collection(err_data))
+                    docs.append(Group(err_data))
                     has_err = True
                 else:
                     raise RuntimeError(
@@ -115,7 +115,7 @@ class Exporter:
 
         if self._join_nlps:
             try:
-                yield Collection.join(docs)
+                yield Group.join(docs)
             except RuntimeError:
                 raise RuntimeError(
                     f"cannot join documents with external key '{text.external_key}'")
@@ -159,7 +159,7 @@ class Archive(AbstractArchive):
         self._assert_write_mode()
         self._batch_add(nlp, items)
 
-    def add(self, item: Union[Collection, Document]):
+    def add(self, item: Union[Group, Document]):
         self._assert_write_mode()
 
         if isinstance(item, Document):

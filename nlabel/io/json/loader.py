@@ -23,9 +23,9 @@ class Document:
     @staticmethod
     @contextlib.contextmanager
     def open(path, *selectors, vectors=True):
-        from.collection import Collection
+        from.group import Group
 
-        with Collection.open(path, vectors=vectors) as collection:
+        with Group.open(path, vectors=vectors) as collection:
             yield collection.view(*selectors)
 
     def save(self, path, exist_ok=False):

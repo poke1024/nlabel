@@ -4,7 +4,7 @@ import json
 import uuid
 import zipfile
 
-from nlabel.io.json.collection import split_data
+from nlabel.io.json.group import split_data
 
 
 def make_archive(keyed_docs, path, export_keys=True, compression=None):

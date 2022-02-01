@@ -18,7 +18,28 @@ def _distinct(values):
     return set(map(json.dumps, values))
 
 
-class Collection:
+class Tag:
+    def __init__(self, tagger, tag):
+        pass
+
+
+class Tagger:
+    def __init__(self, data):
+        self._data = data
+
+    @property
+    def properties(self):
+        return self._data['tagger']
+
+    @property
+    def tags(self):
+        return list(self._data['tags'].keys())
+
+    def __str__(self):
+        return yaml.dump(self.properties)
+
+
+class Group:
     def __init__(self, data):
         if not data.get('vectors'):
             data['vectors'] = [{}] * len(data['taggers'])
@@ -54,7 +75,10 @@ class Collection:
 
     @property
     def taggers(self):
-        return self._data['taggers']
+        return [Tagger(x) for x in self._data['taggers']]
+
+    def find_tagger(self, spec):
+        pass
 
     @property
     def taggers_description(self):
@@ -86,7 +110,7 @@ class Collection:
             split_data = base.copy()
             split_data['taggers'] = [nlp]
             split_data['vectors'] = [vec]
-            yield Collection(split_data)
+            yield Group(split_data)
 
     @staticmethod
     def join(docs):
@@ -115,7 +139,7 @@ class Collection:
         combined['taggers'] = list(itertools.chain(*[x['taggers'] for x in data]))
         combined['vectors'] = list(itertools.chain(*[x['vectors'] for x in data]))
 
-        return Collection(combined)
+        return Group(combined)
 
     def save_to_qda(self, path, *selectors, exist_ok=False):
         from .qda import Exporter as QDAExporter

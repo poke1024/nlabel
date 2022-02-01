@@ -3,7 +3,7 @@ import h5py
 import uuid
 import contextlib
 
-from nlabel.io.json.collection import split_data, Collection
+from nlabel.io.json.group import split_data, Group
 from nlabel.io.common import to_path
 
 
@@ -36,9 +36,9 @@ def open_collection(path, vectors=True):
                 vectors_data.append(group)
 
             data['vectors'] = vectors_data
-            yield Collection(data)
+            yield Group(data)
     else:
-        yield Collection(data)
+        yield Group(data)
 
 
 def save_doc(doc, path, exist_ok=False):

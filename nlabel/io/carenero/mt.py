@@ -14,7 +14,7 @@ from nlabel.io.carenero.common import TaggerFactory, ExternalKey,\
 from nlabel.io.carenero.schema import Text, Result, ResultStatus
 from nlabel.nlp.nlp import NLP as CoreNLP, Text as CoreText
 from nlabel.io.common import RemoteArchive
-from nlabel.io.json.collection import Collection
+from nlabel.io.json.group import Group
 
 
 class RemoteResultFactory(ResultFactory):
@@ -135,7 +135,7 @@ class TextProducer:
 class TagsMessage(NamedTuple):
     text_id: int
     text: CoreText
-    doc: Union[Collection, None]
+    doc: Union[Group, None]
     err: Union[str, None]
 
 

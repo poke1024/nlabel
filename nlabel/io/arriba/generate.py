@@ -13,7 +13,7 @@ import h5py
 import struct
 import sqlalchemy
 
-from nlabel.io.json.collection import split_data
+from nlabel.io.json.group import split_data
 from nlabel.io.common import AbstractSpanFactory
 from nlabel.io.arriba.schema import load_schema
 from sqlalchemy.ext.declarative import declarative_base

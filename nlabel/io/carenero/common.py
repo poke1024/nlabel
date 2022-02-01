@@ -8,7 +8,7 @@ import uuid
 
 from cached_property import cached_property
 
-from nlabel.io.json.collection import split_data
+from nlabel.io.json.group import split_data
 from nlabel.nlp.nlp import NLP as CoreNLP, Text as CoreText
 from nlabel.io.carenero.schema import Tagger, Tags, Text, Vector, Vectors, ResultStatus, Result
 

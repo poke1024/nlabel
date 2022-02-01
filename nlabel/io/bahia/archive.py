@@ -9,7 +9,7 @@ from cached_property import cached_property
 
 from nlabel.io.common import save_archive
 from nlabel.io.json.archive import Archive as AbstractArchive
-from nlabel.io.json.collection import Collection
+from nlabel.io.json.group import Group
 from nlabel.io.json.loader import Loader
 
 
@@ -75,7 +75,7 @@ class Archive(AbstractArchive):
                     if v_data is not None:
                         data['vectors'] = VectorsData(v_data)
 
-                yield stem, Collection(data)
+                yield stem, Group(data)
 
     def _keyed_collections(self, progress):
         external_keys = {}

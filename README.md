@@ -148,28 +148,28 @@ with Document.open("demo") as doc:
             print(token.text, token.upos, token.vector)
 ```
 
-### Views
+### Groups and Views
 
-`Document`s can be combined into `Collection`s, which will
+`Document`s can be combined into `Group`s, which will
 then contain information from multiple taggers:
 
 ```python3
-from nlabel import Collection
+from nlabel import Group
 
-collection = Collection.join([doc1, doc2])
+group = Group.join([doc1, doc2])
 ```
 
-A `collection` contains multiple taggers for *one* shared text.
+A group contains multiple taggers for *one* shared text.
 If you need to collect data for multiple texts, use *archives*
 (see below).
 
-To work with collections, it is necessary to select which
+To work with group, it is necessary to select which
 tags should get mapped to which name, since tags of the same
 name from different taggers would clash otherwise.
 
-Calling `taggers_description` on a `Collection` lists all taggers
+Calling `taggers_description` on a `Group` lists all taggers
 and their internals (think: model sheets) that were used to generate
-the collection. Heres is a real-world output using two taggers:
+the group. Here is a real-world output using two taggers:
 
 ```
 0:
@@ -208,7 +208,7 @@ above. The following example picks four tags from a `spacy`
 tagger (assuming there is only one):
 
 ```python3
-doc = collection.view({
+doc = group.view({
     'tagger.library.name': 'spacy',
     'tags': [
         'sentence',
@@ -269,7 +269,7 @@ multiple labels.
 The default type is `str`. The exception to this rule are morphology tags (e.g.
 spacy's `morph` and stanza's `feats`, which default to `strs`).
 
-To specify label types when creating a view on a `Collection`, use `:` in the
+To specify label types when creating a view on a `Group`, use `:` in the
 tag description, e.g. `pos:str` or `pos_en:labels`.
 
 ### Bridging multiple taggers
@@ -278,7 +278,7 @@ nlabel can easily switch between labels from different taggers (assuming these
 taggers assigned the corresponding tags to same character span).
 
 ```python3
-doc = collection.view({
+doc = group.view({
         'tagger.library.name': 'spacy',
         'tags': ['sentence', 'token', 'pos as spacy_pos' ]
     }, {
