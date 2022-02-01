@@ -7,7 +7,7 @@ import zipfile
 from nlabel.io.json.group import split_data
 
 
-def make_archive(keyed_docs, path, export_keys=True, compression=None):
+def make_archive(taggers, keyed_docs, path, export_keys=True, compression=None):
     if compression is False:
         json_compression = zipfile.ZIP_STORED
         json_compresslevel = 0
@@ -29,7 +29,8 @@ def make_archive(keyed_docs, path, export_keys=True, compression=None):
             'type': 'archive',
             'engine': 'bahia',
             'version': 1,
-            'guid': archive_guid
+            'guid': archive_guid,
+            'taggers': [x.as_meta() for x in taggers]
         }))
 
     vectors_path = path / "vectors.h5"

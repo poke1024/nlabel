@@ -1,4 +1,6 @@
 from .loader import Loader, Document
+from ..selector import select_taggers
+from cached_property import cached_property
 
 import itertools
 import json
@@ -19,27 +21,74 @@ def _distinct(values):
 
 
 class Tag:
-    def __init__(self, tagger, tag):
-        pass
+    def __init__(self, tagger, name):
+        self._tagger = tagger
+        self._name = name
+
+    @property
+    def tagger(self):
+        return self._tagger
+
+    def __str__(self):
+        return self._name
+
+    def __repr__(self):
+        return f"'{self._name}'"
 
 
 class Tagger:
     def __init__(self, data):
         self._data = data
 
-    def as_json(self):
+    @property
+    def id(self):
+        return self._data['guid']
+
+    @staticmethod
+    def from_meta(data):
+        return Tagger({
+            'tagger': data['tagger'],
+            'tags': dict((k, None) for k in data['tags'])
+        })
+
+    def as_dict(self):
         return self._data
+
+    def as_meta(self):
+        return {
+            'tagger': self.properties,
+            'tags': list(self._data['tags'].keys())
+        }
 
     @property
     def properties(self):
         return self._data['tagger']
 
-    @property
+    @cached_property
     def tags(self):
-        return list(self._data['tags'].keys())
+        return [Tag(self, k) for k in self._data['tags'].keys()]
 
     def __str__(self):
         return yaml.dump(self.properties)
+
+
+class TaggerList(list):
+    def __init__(self, taggers):
+        super().__init__(taggers)
+
+    def __getitem__(self, x):
+        if isinstance(x, dict):
+            r = list(select_taggers(self, x))
+            if not r:
+                raise KeyError(x)
+            elif len(r) > 1:
+                raise KeyError(x)
+            return r[0]
+        else:
+            return super().__getitem__(x)
+
+    def filter(self, selector):
+        return TaggerList(select_taggers(self, selector))
 
 
 class Group:
@@ -76,16 +125,9 @@ class Group:
     def external_key(self):
         return self._data.get('external_key')
 
-    @property
+    @cached_property
     def taggers(self):
-        return [Tagger(x) for x in self._data['taggers']]
-
-    def find_tagger(self, spec):
-        raise NotImplementedError()
-
-    @property
-    def taggers_description(self):
-        return yaml.dump(dict(enumerate([x['tagger'] for x in self.taggers])))
+        return TaggerList([Tagger(x) for x in self._data['taggers']])
 
     @property
     def vectors(self):

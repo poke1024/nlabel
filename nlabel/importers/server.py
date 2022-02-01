@@ -3,7 +3,7 @@ from wsgiref.simple_server import make_server
 from nlabel.io.carenero.schema import create_session_factory, \
     Text, ResultStatus, Result, Tagger, Vector, Vectors
 from nlabel.io.carenero.common import ExternalKey, text_hash_code
-from nlabel.io.common import prepare_archive
+from nlabel.io.common import ArchiveInfo
 from nlabel.io.carenero.common import json_to_result
 from sqlalchemy.orm import load_only, lazyload
 
@@ -247,9 +247,8 @@ class ResultsResource:
 def run(path, port, user, password):
     """Run a server on the given carenero archive."""
 
-    base_path, mode, engine, archive_guid = prepare_archive(path, engine='carenero')
-
-    new_session = create_session_factory(base_path)
+    info = ArchiveInfo(path, engine='carenero')
+    new_session = create_session_factory(info.base_path)
 
     auth_backend = BasicAuthBackend(functools.partial(user_loader, config={
         'user': user,

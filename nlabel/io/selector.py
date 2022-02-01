@@ -45,6 +45,18 @@ def _expand_selector(selector, name):
     return r
 
 
+def _expand_selector_all(selector):
+    r = collections.defaultdict(dict)
+    for k, v in selector.items():
+        parts = k.split('.')
+        if len(parts) > 1:
+            _resolve_pattern(
+                r[parts[0]], '.'.join(parts[1:]), v)
+        else:
+            r[k] = v
+    return r
+
+
 class TaggerSelector:
     def __init__(self, pattern):
         self._pattern = pattern
@@ -124,6 +136,16 @@ def dup_info(pattern, matched):
         s.append(f"tagger {tagger_index}:")
         s.append(_format_pattern(tagger['tagger']))
     return "\n".join(s)
+
+
+def select_taggers(taggers, selector):
+    if not isinstance(selector, dict):
+        raise ValueError(f'expected dict, got {selector}')
+    tagger_selector = TaggerSelector(
+        _expand_selector_all(selector))
+    for x in taggers:
+        if tagger_selector.match_tagger(x.as_dict()['tagger']):
+            yield x
 
 
 class ConfiguredSelector:

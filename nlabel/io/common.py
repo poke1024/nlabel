@@ -99,7 +99,7 @@ def _profile(export, docs, *args, n=100, **kwargs):
         f.write(s.getvalue())
 
 
-def save_archive(path, engine, keyed_docs, export_opts=None, exist_ok=False):
+def save_archive(path, engine, taggers, keyed_docs, export_opts=None, exist_ok=False):
     from nlabel.io.arriba.generate import make_archive as make_arriba_archive
     from nlabel.io.bahia.generate import make_archive as make_bahia_archive
 
@@ -122,11 +122,11 @@ def save_archive(path, engine, keyed_docs, export_opts=None, exist_ok=False):
             export_opts = dict((k, v) for k, v in export_opts.items() if k != 'export_keys')
 
             docs = keyed_docs(**export_opts)
-            make_bahia_archive(docs, base_path, export_keys=export_keys)
+            make_bahia_archive(taggers, docs, base_path, export_keys=export_keys)
             #_profile(make_bahia_archive, docs, base_path, export_keys=export_keys)
         elif engine == 'arriba':
             docs = keyed_docs(**export_opts)
-            make_arriba_archive(docs, base_path)
+            make_arriba_archive(taggers, docs, base_path)
             #_profile(make_arriba_archive, docs, base_path)
         else:
             raise ValueError(f'unsupported storage engine {engine}')
@@ -137,74 +137,84 @@ def save_archive(path, engine, keyed_docs, export_opts=None, exist_ok=False):
         raise
 
 
-def prepare_archive(path, mode=None, engine=None):
-    base_path = to_path(path, '.nlabel')
-    auto_mode = False
+class ArchiveInfo:
+    def __init__(self, path, mode=None, engine=None):
+        base_path = to_path(path, '.nlabel')
+        auto_mode = False
 
-    if mode is None:
-        auto_mode = True
-        if base_path.exists():
-            mode = 'r+'
-        else:
-            mode = 'w+'
+        if mode is None:
+            auto_mode = True
+            if base_path.exists():
+                mode = 'r+'
+            else:
+                mode = 'w+'
 
-    if mode == 'r':
-        if not base_path.exists():
-            raise FileNotFoundError(base_path)
-        with open(base_path / 'meta.json', 'r') as f:
-            meta = json.loads(f.read())
-        if meta['type'] != 'archive':
-            raise RuntimeError(
-                f"expected archive, got {meta['type']}")
-        if engine is None:
-            engine = meta['engine']
-        elif engine != meta['engine']:
-            raise ValueError(
-                'specified engine does not match archive')
-        archive_guid = meta['guid']
-    elif mode in ('r+', 'w+'):
-        if base_path.exists():
-            if mode == 'w+':
-                raise RuntimeError(
-                    f"ignoring w+ on existing archive file at {base_path}")
-
+        if mode == 'r':
+            if not base_path.exists():
+                raise FileNotFoundError(base_path)
             with open(base_path / 'meta.json', 'r') as f:
                 meta = json.loads(f.read())
-
+            if meta['type'] != 'archive':
+                raise RuntimeError(
+                    f"expected archive, got {meta['type']}")
             if engine is None:
                 engine = meta['engine']
             elif engine != meta['engine']:
                 raise ValueError(
                     'specified engine does not match archive')
-
-            assert meta['type'] == 'archive'
-            assert meta['version'] == 1
-
             archive_guid = meta['guid']
-        else:
-            if mode == 'r+':
-                raise FileNotFoundError(base_path)
+        elif mode in ('r+', 'w+'):
+            if base_path.exists():
+                if mode == 'w+':
+                    raise RuntimeError(
+                        f"ignoring w+ on existing archive file at {base_path}")
 
-            if engine is None:
-                raise ValueError('specify a storage engine')
+                with open(base_path / 'meta.json', 'r') as f:
+                    meta = json.loads(f.read())
 
-            base_path.mkdir()
+                if engine is None:
+                    engine = meta['engine']
+                elif engine != meta['engine']:
+                    raise ValueError(
+                        'specified engine does not match archive')
 
-            archive_guid = str(uuid.uuid4()).upper()
-            with open(base_path / 'meta.json', 'w') as f:
-                f.write(json.dumps({
+                assert meta['type'] == 'archive'
+                assert meta['version'] == 1
+
+                archive_guid = meta['guid']
+            else:
+                if mode == 'r+':
+                    raise FileNotFoundError(base_path)
+
+                if engine is None:
+                    raise ValueError('specify a storage engine')
+
+                base_path.mkdir()
+
+                archive_guid = str(uuid.uuid4()).upper()
+
+                meta = {
                     'type': 'archive',
                     'engine': engine,
                     'version': 1,
-                    'guid': archive_guid
-                }))
-    else:
-        raise ValueError(mode)
+                    'guid': archive_guid,
+                    'taggers': []
+                }
 
-    if engine in ('bahia', 'arriba') and auto_mode and mode == 'r+':
-        mode = 'r'
+                with open(base_path / 'meta.json', 'w') as f:
+                    f.write(json.dumps(meta))
+        else:
+            raise ValueError(mode)
 
-    return base_path, mode, engine, archive_guid
+        if engine in ('bahia', 'arriba') and auto_mode and mode == 'r+':
+            mode = 'r'
+
+        self.base_path = base_path
+        self.mode = mode
+        self.engine = engine
+        self.guid = archive_guid
+        self.taggers = meta["taggers"]
+        self.meta = meta
 
 
 @contextlib.contextmanager
@@ -213,19 +223,19 @@ def open_archive(path, mode=None, engine=None, **kwargs):
     from nlabel.io.bahia.archive import open_archive as open_bahia_archive
     from nlabel.io.arriba.archive import open_archive as open_arriba_archive
 
-    base_path, mode, engine, archive_guid = prepare_archive(path, mode=mode, engine=engine)
+    info = ArchiveInfo(path, mode=mode, engine=engine)
 
-    if engine == 'carenero':
-        with open_carenero_archive(base_path, mode=mode, archive_guid=archive_guid, **kwargs) as x:
+    if info.engine == 'carenero':
+        with open_carenero_archive(info, **kwargs) as x:
             yield x
-    elif engine == 'bahia':
-        with open_bahia_archive(base_path, mode=mode, archive_guid=archive_guid, **kwargs) as x:
+    elif info.engine == 'bahia':
+        with open_bahia_archive(info, **kwargs) as x:
             yield x
-    elif engine == 'arriba':
-        with open_arriba_archive(base_path, mode=mode, archive_guid=archive_guid, **kwargs) as x:
+    elif info.engine == 'arriba':
+        with open_arriba_archive(info, **kwargs) as x:
             yield x
     else:
-        raise ValueError(f'unknown engine {engine}')
+        raise ValueError(f'unknown engine {info.engine}')
 
 
 class RemoteArchive:

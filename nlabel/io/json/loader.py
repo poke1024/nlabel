@@ -2,6 +2,7 @@ import contextlib
 import itertools
 import functools
 import numpy as np
+import logging
 
 from cached_property import cached_property
 from numpy import searchsorted
@@ -55,6 +56,7 @@ class Document:
     def _tag_form(self, name):
         form = self._tag_forms.get(name)
         if not form:
+            logging.info(f"available tags: {list(self._tag_forms.keys())}")
             raise TagError(name)
         return form
 
@@ -273,8 +275,8 @@ class Loader:
     def __init__(self, *selectors, inherit_labels=True):
         self._selector = make_selector(label_factories, selectors)
 
-    def __call__(self, collection):
-        builder = ViewBuilder(collection)
+    def __call__(self, group):
+        builder = ViewBuilder(group)
         tag_forms = self._selector.build(
-            [x.as_json() for x in collection.taggers], builder.add)
+            [x.as_dict() for x in group.taggers], builder.add)
         return builder.make_view(tag_forms)

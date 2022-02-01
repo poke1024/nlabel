@@ -10,7 +10,7 @@ from typing import List, Union
 
 from nlabel.io.common import save_archive
 from nlabel.io.json.loader import Loader
-from nlabel.io.json.group import Group, Tagger as JsonTagger
+from nlabel.io.json.group import Group, Tagger as JsonTagger, TaggerList as JsonTaggerList
 from nlabel.io.json.archive import Archive as AbstractArchive
 from nlabel.nlp.core import Text as CoreText
 from nlabel.nlp.nlp import NLP as CoreNLP
@@ -43,6 +43,7 @@ def _result_to_doc(result, vectors=True, migrate=None):
 
     assert 'taggers' not in json_data
     json_data['taggers'] = [{
+        'guid': result.tagger.guid,
         'tagger': orjson.loads(result.tagger.description),
         'tags': json_data['tags']
     }]
@@ -246,11 +247,14 @@ class Archive(AbstractArchive):
 
     @property
     def taggers(self):
+        taggers = []
         for tagger in self._session.query(Tagger).yield_per(100):
-            yield JsonTagger({
+            taggers.append(JsonTagger({
+                'guid': tagger.guid,
                 'tagger': orjson.loads(tagger.description),
                 'tags': dict((x.name, None) for x in tagger.tags)
-            })
+            }))
+        return JsonTaggerList(taggers)
 
     def iter(self, *selectors, progress=True):
         loader = Loader(*selectors)
@@ -260,12 +264,16 @@ class Archive(AbstractArchive):
 
     def save(self, path, engine, export_opts=None, exist_ok=False, progress=True):
         save_archive(
-            path, engine, functools.partial(self._collections, progress=progress),
+            path, engine,
+            list(self.taggers), functools.partial(self._collections, progress=progress),
             export_opts=export_opts, exist_ok=exist_ok)
 
 
 @contextlib.contextmanager
-def open_archive(path, mode='r', migrate=None, echo_sql=False, archive_guid=None):
+def open_archive(info, migrate=None, echo_sql=False):
+    path = info.base_path
+    mode = info.mode
+
     session_factory = create_session_factory(path, echo=echo_sql)
 
     session = session_factory()

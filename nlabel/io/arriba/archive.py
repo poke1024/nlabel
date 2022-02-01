@@ -5,10 +5,12 @@ import struct
 import h5py
 
 from tqdm import tqdm
+from cached_property import cached_property
 
 from ..common import binary_searcher
 from ..form import inflected_tag_forms
 from ..selector import make_selector
+from nlabel.io.json.group import Tagger as JsonTagger, TaggerList as JsonTaggerList
 from nlabel.io.arriba.document import Code, DocData, Document
 from nlabel.io.arriba.label import factories as label_factories
 from nlabel.io.arriba.schema import load_schema
@@ -88,8 +90,9 @@ class Iterator:
 
 
 class Archive:
-    def __init__(self, path, b_archive, mm, traversal_limit_multiplier, vectors_file=None):
+    def __init__(self, path, taggers, b_archive, mm, traversal_limit_multiplier, vectors_file=None):
         self._path = path
+        self._taggers = taggers
         self._archive = b_archive
         self._mm = mm
         self._traversal_limit_multiplier = traversal_limit_multiplier
@@ -104,6 +107,11 @@ class Archive:
     @property
     def path(self):
         return self._path
+
+    @cached_property
+    def taggers(self):
+        return JsonTaggerList([
+            JsonTagger.from_meta(x) for x in self._taggers])
 
     def iter(self, *selectors, inherit_labels=True, progress=True):
         it = Iterator(
@@ -121,9 +129,11 @@ class Archive:
 
 
 @contextlib.contextmanager
-def open_archive(path, traversal_limit_multiplier=1024, mode="r", archive_guid=None):
-    if mode != "r":
-        raise RuntimeError(f"mode {mode} is not supported")
+def open_archive(info, traversal_limit_multiplier=1024):
+    path = info.base_path
+
+    if info.mode != "r":
+        raise RuntimeError(f"mode {info.mode} is not supported")
 
     with open(path / "archive.bin", "rb") as f:
         with mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ) as mm:
@@ -137,12 +147,12 @@ def open_archive(path, traversal_limit_multiplier=1024, mode="r", archive_guid=N
 
                     mv2 = mv[8 + header_size:]
                     try:
-                        archive_args = [path, arch, mv2, traversal_limit_multiplier]
+                        archive_args = [path, info.taggers, arch, mv2, traversal_limit_multiplier]
 
                         vectors_path = path / "vectors.h5"
                         if vectors_path.exists():
                             with h5py.File(vectors_path, "r") as vf:
-                                if vf.attrs['archive'] != archive_guid:
+                                if vf.attrs['archive'] != info.guid:
                                     raise RuntimeError("archive GUID mismatch")
                                 yield Archive(*archive_args, vectors_file=vf)
                         else:

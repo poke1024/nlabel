@@ -437,7 +437,7 @@ def make_session(path):
     return session
 
 
-def make_archive(keyed_docs, path: Path, commit_freq: int = 500):
+def make_archive(taggers, keyed_docs, path: Path, commit_freq: int = 500):
     dbs = [
         'index'
     ]
@@ -479,7 +479,8 @@ def make_archive(keyed_docs, path: Path, commit_freq: int = 500):
                     'type': 'archive',
                     'engine': 'arriba',
                     'version': 1,
-                    'guid': archive_guid
+                    'guid': archive_guid,
+                    'taggers': [x.as_meta() for x in taggers]
                 }))
 
             vf.attrs['archive'] = archive_guid

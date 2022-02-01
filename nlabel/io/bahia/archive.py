@@ -9,7 +9,7 @@ from cached_property import cached_property
 
 from nlabel.io.common import save_archive
 from nlabel.io.json.archive import Archive as AbstractArchive
-from nlabel.io.json.group import Group
+from nlabel.io.json.group import Group, Tagger as JsonTagger, TaggerList as JsonTaggerList
 from nlabel.io.json.loader import Loader
 
 
@@ -33,8 +33,9 @@ class VectorsData:
 
 
 class Archive(AbstractArchive):
-    def __init__(self, path, zf, vf):
+    def __init__(self, path, taggers, zf, vf):
         self._path = path
+        self._taggers = taggers
         self._zf = zf
         self._vf = vf
         self._size = len(zf.filelist)
@@ -88,24 +89,32 @@ class Archive(AbstractArchive):
 
     def save(self, path, engine, export_opts=None, exist_ok=False, progress=True):
         save_archive(
-            path, engine, functools.partial(self._keyed_collections, progress=progress),
+            path, engine,
+            list(self.taggers), functools.partial(self._keyed_collections, progress=progress),
             export_opts=export_opts, exist_ok=exist_ok)
 
     def __len__(self):
         return self._size
+
+    @cached_property
+    def taggers(self):
+        return JsonTaggerList([JsonTagger.from_meta(x) for x in self._taggers])
+
+    def iter_groups(self, progress=True):
+        for _, collection in self._collections(progress=progress):
+            yield collection
 
     def iter(self, *selectors, progress=True):
         loader = Loader(*selectors)
         for _, doc in self._collections(progress=progress):
             yield loader(doc)
 
-    def iter_c(self, progress=True):
-        for _, collection in self._collections(progress=progress):
-            yield collection
-
 
 @contextlib.contextmanager
-def open_archive(path, mode: str = "r", archive_guid=None):
+def open_archive(info):
+    path = info.base_path
+    mode = info.mode
+
     if mode != "r":
         raise RuntimeError(f"mode {mode} is not supported")
 
@@ -113,9 +122,9 @@ def open_archive(path, mode: str = "r", archive_guid=None):
         vectors_path = path / "vectors.h5"
         if vectors_path.exists():
             with h5py.File(vectors_path, "r") as vf:
-                if vf.attrs['archive'] != archive_guid:
+                if vf.attrs['archive'] != info.guid:
                     raise RuntimeError("archive GUID mismatch")
-                yield Archive(path, zf, vf)
+                yield Archive(path, info.taggers, zf, vf)
         else:
-            yield Archive(path, zf, None)
+            yield Archive(path, info.taggers, zf, None)
 
