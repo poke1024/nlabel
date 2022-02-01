@@ -217,6 +217,10 @@ class All:
     pass
 
 
+class Automatic:
+    pass
+
+
 def make_selector(label_factories, selectors):
     if not selectors:
         raise ValueError("please specify one or more selectors")

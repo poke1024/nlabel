@@ -404,7 +404,7 @@ directly, e.g. iterating its documents:
 from nlabel import open_archive
 
 with open_archive("some/archive.nlabel", mode="r") as archive:
-    for doc in archive.iter():
+    for doc in archive.iter(some_selector):
         for x in doc.tokens:
             print(x.text, x.xpos, x.vector)
 ```
