@@ -33,6 +33,14 @@ def _result_to_doc(result, vectors=True, migrate=None):
     if text.meta:
         json_data['meta'] = orjson.loads(text.meta)
 
+    if 'tags' in json_data:
+        assert not result.tags
+    else:
+        tags_data = {}
+        for tags in result.tags:
+            tags_data[tags.tag_name] = orjson.loads(tags.data)
+        json_data['tags'] = tags_data
+
     assert 'taggers' not in json_data
     json_data['taggers'] = [{
         'tagger': orjson.loads(result.tagger.description),
@@ -155,7 +163,7 @@ class Archive(AbstractArchive):
         self._assert_write_mode()
 
         if isinstance(item, Document):
-            doc = item.doc
+            doc = item.collection
         else:
             doc = item
 
@@ -249,7 +257,7 @@ class Archive(AbstractArchive):
 
 
 @contextlib.contextmanager
-def open_archive(path, mode='r', migrate=None, echo_sql=False):
+def open_archive(path, mode='r', migrate=None, echo_sql=False, archive_guid=None):
     session_factory = create_session_factory(path, echo=echo_sql)
 
     session = session_factory()

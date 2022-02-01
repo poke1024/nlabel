@@ -44,6 +44,7 @@ class Tagger(Base):
     __tablename__ = 'tagger'
 
     id = Column(Integer, primary_key=True)
+    guid = Column(String, unique=True, nullable=False)
     description = deferred(Column(String, unique=True))
     results = relationship("Result", lazy="dynamic")
 
@@ -74,6 +75,18 @@ class ResultStatus(enum.Enum):
     failed = 1
 
 
+class Tags(Base):
+    __tablename__ = 'tags'
+
+    id = Column(Integer, primary_key=True)
+    result_id = Column(Integer, ForeignKey('result.id'))
+    result = relationship("Result", back_populates="tags")
+    tag_name = Column(String)
+    data = Column(String)
+
+    uniq_result_name = UniqueConstraint('result_id', 'tag_name')
+
+
 class Result(Base):
     __tablename__ = 'result'
 
@@ -85,9 +98,10 @@ class Result(Base):
     status = Column(Enum(ResultStatus), index=True)
     content = deferred(Column(String))
     vectors = relationship("Vectors", back_populates="result", lazy="dynamic")
+    tags = relationship("Tags", back_populates="result", lazy="dynamic")
     time_created = Column(DateTime(timezone=True), server_default=func.now())
 
-    uniq_tt = UniqueConstraint('text_id', 'tagger_id')
+    uniq_text_tagger = UniqueConstraint('text_id', 'tagger_id')
 
 
 def create_session_factory(path, echo=False):

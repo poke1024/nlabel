@@ -327,12 +327,14 @@ should be taken from the provided spacy model.
 
 nlabel comes with three different persistence engines:
 
-* `carenero` is for building data in a batch setting - by
-supporting restartability and transaction safety
+* `carenero` is for collecting data, esp. in a batch setting - by
+supporting restartability and transaction safety, and enabling
+export of full data or sub sets of it into bahia or arriba.
 * `bahia` is suitable for archival purposes, as it is just
-a thin wrapper around a zip of human-readable json files
+a thin wrapper around a zip of human-readable json files; it is not
+the ideal format for exports.
 * `arriba` is a binary format optimized for read performance,
-it is suitable for data analysis.
+it is suitable for data analysis; it is not suitable for exports.
 
 #### Storage Size
 
@@ -360,17 +362,18 @@ finishes in seconds using `arriba`.
 #### More Engine Details
 
 These engines support storing both tagging data and
-embedding vectors.  In the ordering above, they go from slower to faster.
+embedding vectors. In the ordering above, they go from slower to faster.
 
-|                       | carenero | bahia               | arriba |
-|-----------------------|----------|---------------------|--------|
-| incremental updates   | +        | not recommended (*) | -      |
-| save to other formats | +        | +                   | -      |
-| suitable for archival | -        | +                   | -      |
-| read speeds           | --       | -                   | ++     |
+|                       | carenero  | bahia | arriba |
+|-----------------------|-----------|-------|--------|
+| data collection       | +         | -     | -      |
+| exporting             | +         | -     | -      |
+| read speeds           | -         | -     | +      |
+| suitable for archival | -         | +     | -      |
 
 (*) bahia supports writes, but does not avoid adding duplicates
-or support proper restartability in batch settings.
+or support proper restartability in batch settings, i.e. it is
+not suited to incremental updates.
 
 ### Additional Examples
 

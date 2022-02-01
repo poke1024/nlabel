@@ -9,6 +9,7 @@ from nlabel.nlp.tagger.flair import FlairTagger
 from nlabel.nlp.tagger.pavlov import PavlovTagger
 from nlabel.nlp.core import Tagger, Text
 from nlabel.io.json.collection import Collection
+from nlabel.io.selector import One
 
 
 class NLP:
@@ -102,7 +103,7 @@ class NLP:
         if external_key is not None:
             data['external_key'] = external_key
 
-        return Collection(data).view()
+        return Collection(data).view(One())
 
     def __call__(self, text: str, meta: dict = None, external_key: Union[str, dict] = None):
         return self._make_doc(

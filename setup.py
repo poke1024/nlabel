@@ -1,15 +1,17 @@
-from distutils.core import setup
+from setuptools import setup, find_packages
 
-with open('requirements.txt') as f:
+with open('requirements.txt', 'r') as f:
     required = f.read().splitlines()
 
 setup(
     name='nlabel',
-    version='0.0.1a',
+    version='0.0.1.dev0',
+    packages=find_packages('nlabel', 'nlabel.*'),
     description='nlabel tagging and embeddings library',
+    url='https://github.com/poke1024/nlabel',
+    license=open('LICENSE', 'r').read(),
     author='Bernhard Liebl',
     author_email='poke1024@gmx.de',
     install_requires=required,
-    license='Creative Commons Attribution-Noncommercial-Share Alike license',
     long_description=open('README.md').read(),
 )

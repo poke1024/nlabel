@@ -4,12 +4,13 @@ import json
 import logging
 import traceback
 import hashlib
+import uuid
 
 from cached_property import cached_property
 
 from nlabel.io.json.collection import split_data
 from nlabel.nlp.nlp import NLP as CoreNLP, Text as CoreText
-from nlabel.io.carenero.schema import Tagger, Text, Vector, Vectors, ResultStatus, Result
+from nlabel.io.carenero.schema import Tagger, Tags, Text, Vector, Vectors, ResultStatus, Result
 
 
 class TaggerFactory:
@@ -31,7 +32,9 @@ class TaggerFactory:
         if instance:
             return instance
         else:
-            instance = Tagger(description=description)
+            instance = Tagger(
+                guid=str(uuid.uuid4()).upper(),
+                description=description)
             self._session.add(instance)
             self._session.commit()
             return instance
@@ -170,6 +173,29 @@ class ResultFactory:
         raise NotImplementedError()
 
 
+def json_to_result(tagger, text, status, json_data):
+    tags = json_data.get('tags')
+
+    if tags is not None:
+        assert isinstance(tags, dict)
+
+        x_tags = [
+            Tags(tag_name=k, data=json.dumps(v))
+            for k, v in tags.items()]
+
+        core_json_data = dict((k, v) for k, v in json_data.items() if k != 'tags')
+    else:
+        x_tags = []
+        core_json_data = json_data
+
+    return Result(
+        tagger=tagger,
+        text=text,
+        status=status,
+        content=json.dumps(core_json_data),
+        tags=x_tags)
+
+
 class LocalResultFactory(ResultFactory):
     def __init__(self, x_tagger, x_text):
         self._x_tagger = x_tagger
@@ -180,11 +206,11 @@ class LocalResultFactory(ResultFactory):
             tagger, sort_keys=True)
 
     def _make_succeeded(self, json_data, vectors_data):
-        result = Result(
-            text=self._x_text,
+        result = json_to_result(
             tagger=self._x_tagger,
+            text=self._x_text,
             status=ResultStatus.succeeded,
-            content=json.dumps(json_data))
+            json_data=json_data)
 
         dtype = '<f4'
         for nlp_vectors_data in vectors_data:

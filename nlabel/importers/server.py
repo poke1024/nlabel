@@ -4,6 +4,7 @@ from nlabel.io.carenero.schema import create_session_factory, \
     Text, ResultStatus, Result, Tagger, Vector, Vectors
 from nlabel.io.carenero.common import ExternalKey, text_hash_code
 from nlabel.io.common import prepare_archive
+from nlabel.io.carenero.common import json_to_result
 from sqlalchemy.orm import load_only, lazyload
 
 from falcon_auth2 import AuthMiddleware
@@ -213,11 +214,11 @@ class ResultsResource:
             tagger = session.query(Tagger).filter(Tagger.id == tagger_id).first()
             text = session.query(Text).filter(Text.id == text_id).first()
 
-            result = Result(
+            result = json_to_result(
                 tagger=tagger,
                 text=text,
                 status=ResultStatus[result_data['status']],
-                content=json.dumps(result_data['content']))
+                json_data=result_data['content'])
 
             vectors = result_data.get('vectors')
             if vectors is not None:
