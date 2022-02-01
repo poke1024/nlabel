@@ -10,7 +10,7 @@ from typing import List, Union
 
 from nlabel.io.common import save_archive
 from nlabel.io.json.loader import Loader
-from nlabel.io.json.group import Group
+from nlabel.io.json.group import Group, Tagger as JsonTagger
 from nlabel.io.json.archive import Archive as AbstractArchive
 from nlabel.nlp.core import Text as CoreText
 from nlabel.nlp.nlp import NLP as CoreNLP
@@ -37,8 +37,8 @@ def _result_to_doc(result, vectors=True, migrate=None):
         assert not result.tags
     else:
         tags_data = {}
-        for tags in result.tags:
-            tags_data[tags.tag_name] = orjson.loads(tags.data)
+        for tag_i in result.tag_instances:
+            tags_data[tag_i.tag.name] = orjson.loads(tag_i.data)
         json_data['tags'] = tags_data
 
     assert 'taggers' not in json_data
@@ -243,6 +243,14 @@ class Archive(AbstractArchive):
                 vectors=vectors,
                 migrate=self._migrate)
             yield loader(doc)
+
+    @property
+    def taggers(self):
+        for tagger in self._session.query(Tagger).yield_per(100):
+            yield JsonTagger({
+                'tagger': orjson.loads(tagger.description),
+                'tags': dict((x.name, None) for x in tagger.tags)
+            })
 
     def iter(self, *selectors, progress=True):
         loader = Loader(*selectors)

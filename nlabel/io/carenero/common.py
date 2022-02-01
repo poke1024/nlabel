@@ -10,7 +10,7 @@ from cached_property import cached_property
 
 from nlabel.io.json.group import split_data
 from nlabel.nlp.nlp import NLP as CoreNLP, Text as CoreText
-from nlabel.io.carenero.schema import Tagger, Tags, Text, Vector, Vectors, ResultStatus, Result
+from nlabel.io.carenero.schema import Tagger, Tag, TagInstances, Text, Vector, Vectors, ResultStatus, Result
 
 
 class TaggerFactory:
@@ -173,19 +173,28 @@ class ResultFactory:
         raise NotImplementedError()
 
 
+def _find_or_create_tag(tagger, name):
+    for tag in tagger.tags:
+        if tag.name == name:
+            return tag
+    tag = Tag(tagger=tagger, name=name)
+    tagger.tags.append(tag)
+    return tag
+
+
 def json_to_result(tagger, text, status, json_data):
     tags = json_data.get('tags')
 
     if tags is not None:
         assert isinstance(tags, dict)
 
-        x_tags = [
-            Tags(tag_name=k, data=json.dumps(v))
+        x_tag_i = [
+            TagInstances(tag=_find_or_create_tag(tagger, k), data=json.dumps(v))
             for k, v in tags.items()]
 
         core_json_data = dict((k, v) for k, v in json_data.items() if k != 'tags')
     else:
-        x_tags = []
+        x_tag_i = []
         core_json_data = json_data
 
     return Result(
@@ -193,7 +202,7 @@ def json_to_result(tagger, text, status, json_data):
         text=text,
         status=status,
         content=json.dumps(core_json_data),
-        tags=x_tags)
+        tag_instances=x_tag_i)
 
 
 class LocalResultFactory(ResultFactory):

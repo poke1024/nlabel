@@ -47,6 +47,19 @@ class Tagger(Base):
     guid = Column(String, unique=True, nullable=False)
     description = deferred(Column(String, unique=True))
     results = relationship("Result", lazy="dynamic")
+    tags = relationship("Tag", lazy="dynamic")
+
+
+class Tag(Base):
+    __tablename__ = 'tag'
+
+    id = Column(Integer, primary_key=True)
+    tagger_id = Column(Integer, ForeignKey('tagger.id'), index=True)
+    tagger = relationship("Tagger", back_populates="tags", uselist=False)
+    name = Column(String, nullable=False)
+    instances = relationship("TagInstances", lazy="dynamic", back_populates="tag")
+
+    uniq_tagger_name = UniqueConstraint('tagger_id', 'name')
 
 
 class Vector(Base):
@@ -65,7 +78,7 @@ class Vectors(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String)
     result_id = Column(Integer, ForeignKey('result.id'), index=True)
-    result = relationship("Result", back_populates="vectors")
+    result = relationship("Result", back_populates="vectors", uselist=False)
     dtype = Column(String)
     vectors = relationship("Vector", lazy="joined", back_populates="vectors", order_by="Vector.index")
 
@@ -75,16 +88,17 @@ class ResultStatus(enum.Enum):
     failed = 1
 
 
-class Tags(Base):
-    __tablename__ = 'tags'
+class TagInstances(Base):
+    __tablename__ = 'tag_instances'
 
     id = Column(Integer, primary_key=True)
     result_id = Column(Integer, ForeignKey('result.id'))
-    result = relationship("Result", back_populates="tags")
-    tag_name = Column(String)
+    result = relationship("Result", back_populates="tag_instances")
+    tag_id = Column(Integer, ForeignKey('tag.id'))
+    tag = relationship("Tag", uselist=False)
     data = Column(String)
 
-    uniq_result_name = UniqueConstraint('result_id', 'tag_name')
+    uniq_result_tag = UniqueConstraint('result_id', 'tag_id')
 
 
 class Result(Base):
@@ -98,7 +112,7 @@ class Result(Base):
     status = Column(Enum(ResultStatus), index=True)
     content = deferred(Column(String))
     vectors = relationship("Vectors", back_populates="result", lazy="dynamic")
-    tags = relationship("Tags", back_populates="result", lazy="dynamic")
+    tag_instances = relationship("TagInstances", back_populates="result", lazy="dynamic")
     time_created = Column(DateTime(timezone=True), server_default=func.now())
 
     uniq_text_tagger = UniqueConstraint('text_id', 'tagger_id')
