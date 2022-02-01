@@ -233,9 +233,14 @@ class DocData:
     def text_span(self, start, end):
         return self.decode_utf8(self.b_doc.text[start:end])
 
+    @cached_property
+    def _utf8_to_text_index(self):
+        w = np.array([len(x) for x in codecs.iterencode(self.text, "utf8")], dtype=np.uint32)
+        offsets = np.cumsum(np.concatenate([[0], w]))
+        return dict((x, i) for i, x in enumerate(offsets))
+
     def span_index(self, i):
-        # convert utf8 byte index to char index
-        raise NotImplementedError
+        return self._utf8_to_text_index[i]  # convert utf8 byte index to char index
 
     @functools.lru_cache
     def _vectors(self, code_id):
