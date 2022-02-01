@@ -1,0 +1,17 @@
+spacy
+stanza
+flair
+parsimonious
+tqdm
+sqlalchemy
+orjson
+pycapnp
+cached_property
+numpy
+h5py
+lxml
+pyyaml
+requests
+falcon
+falcon-auth2[jwt]
+click

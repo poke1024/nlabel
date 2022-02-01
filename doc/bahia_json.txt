@@ -1,0 +1,37 @@
+ROOT:
+	text: full text of document as str
+	external_key (opt): a user-defined key identifying this document, a str or a dict
+	meta (opt): additional user-defined meta data for this document, usually a dict
+	stat (opt): additional meta data produced during tagging, e.g. elapsed runtime
+	taggers: a list of TAGGER items
+
+TAGGER: a tagger and its tag data
+	tagger: a dictionary describing a tagger, details depend on the Producer implementation
+	    type: supposed to be "nlp"
+		env:
+			platform: single string identifying OS and machine
+			machine: machine architecture of nlp job, e.g. "i386"
+			runtime:
+				python: python version used, e.g. "3.9.7"
+				nlabel: version of nlabel used
+		library:
+			name: name of library used, e.g. "spacy"
+			version: version of library used, e.g. "3.2.1"
+		model (opt):
+			name: name of model used, e.g. "core_web_sm"
+			version: version of model used, e.g. "3.2.0"
+		vectors (opt): a list of tag names for which vectors were produced
+
+	tags: a dictionary of tag name (e.g. "lemma") as keys and TAGLIST as values
+
+TAGLIST: a list of TAG items
+
+TAG:
+	start (opt): text index into ROOT.text, indicating start of tag
+	end (opt): text index into ROOT.text, indicating end of tag
+	labels (opt): a list of LABEL items
+	parent (opt): index into current list of TAG to indicate parent
+
+LABEL:
+	value: the label's value, e.g. "PRON" for a pos tag
+	score (opt): the label's score, a floating point number

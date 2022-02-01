@@ -1,0 +1,23 @@
+name: nlabel
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.8
+  - gdbm
+  - spacy
+  - stanza
+  - flair
+  - parsimonious
+  - tqdm
+  - sqlalchemy
+  - orjson
+  - pycapnp
+  - cached_property
+  - numpy
+  - h5py
+  - lxml
+  - pyyaml
+  - requests
+  - falcon
+  - falcon-auth2[jwt]
+  - click
