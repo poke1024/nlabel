@@ -27,6 +27,9 @@ class Tagger:
     def __init__(self, data):
         self._data = data
 
+    def as_json(self):
+        return self._data
+
     @property
     def properties(self):
         return self._data['tagger']
@@ -78,7 +81,7 @@ class Group:
         return [Tagger(x) for x in self._data['taggers']]
 
     def find_tagger(self, spec):
-        pass
+        raise NotImplementedError()
 
     @property
     def taggers_description(self):

@@ -276,5 +276,5 @@ class Loader:
     def __call__(self, collection):
         builder = ViewBuilder(collection)
         tag_forms = self._selector.build(
-            collection.taggers, builder.add)
+            [x.as_json() for x in collection.taggers], builder.add)
         return builder.make_view(tag_forms)
