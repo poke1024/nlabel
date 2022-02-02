@@ -1,4 +1,4 @@
-from .common import Name
+from nlabel.io.json.name import Name
 
 
 class TagForm:

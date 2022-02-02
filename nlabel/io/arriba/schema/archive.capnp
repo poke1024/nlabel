@@ -66,8 +66,9 @@ struct Document {
 # archive level
 
 struct Tagger {
-    spec @0 :Text;
-    codes @1 :List(Int32);  # ref into Archive.codes
+    guid @0 :Text;
+    signature @1 :Text;
+    codes @2 :List(Int32);  # ref into Archive.codes
 }
 
 struct Code {

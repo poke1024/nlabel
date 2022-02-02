@@ -2,9 +2,10 @@ import collections
 import logging
 import json
 import yaml
-from .common import Name
 from .form import TagForm
 from .parser import TagNameParser
+
+from nlabel.io.json.name import Name
 
 
 def match_pattern(pattern, data):
@@ -243,12 +244,50 @@ class Automatic:
     pass
 
 
+class SelectorV2:
+    def __init__(self, tags, label_factories):
+        self._label_factories = label_factories
+
+        self._by_guid = collections.defaultdict(list)
+        name_clashes = collections.defaultdict(list)
+
+        for tag in tags:
+            name_clashes[tag._name.external].append(tag)
+
+        for name, clashes in name_clashes.items():
+            if len(clashes) > 1:
+                raise RuntimeError(f"name clash on {name}")
+
+        for tag in tags:
+            self._by_guid[tag.tagger.id].append(tag)
+
+    def build(self, taggers, add):
+        tag_forms = {}
+
+        for tagger_index, tagger in enumerate(taggers):
+            tags = self._by_guid.get(tagger['guid'], [])
+            for tag in tags:
+                tag_data = tagger['tags'].get(tag._name.internal)
+                if tag_data:
+                    form = TagForm(tag._name, self._label_factories[tag.label_type])
+                    tag_forms[tag._name.external] = form
+                    add(tagger_index, form, tag_data)
+
+        return tag_forms
+
+
 def make_selector(label_factories, selectors):
-    if not selectors:
-        raise ValueError("please specify one or more selectors")
-    if len(selectors) == 1 and isinstance(selectors[0], All):
-        return AllSelector(label_factories)
-    elif len(selectors) == 1 and isinstance(selectors[0], One):
-        return OneSelector(label_factories)
-    else:
-        return ConfiguredSelector(label_factories, selectors)
+    from nlabel.io.json.group import Tagger, Tag
+
+    tags = []
+
+    for x in selectors:
+        if isinstance(x, Tagger):
+            tags.extend(x.tags)
+        elif isinstance(x, Tag):
+            tags.append(x)
+        else:
+            raise ValueError(
+                f"expected Tagger or Tag, got {x}")
+
+    return SelectorV2(tags, label_factories)

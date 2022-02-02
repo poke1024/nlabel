@@ -56,21 +56,27 @@ class Lexicon:
     def __init__(self):
         self._inverse = {}
         self._sequence = []
+        self._meta = []
 
     def _make(self, index, value):
         return index, value
 
-    def add(self, value):
+    def add(self, value, meta=None):
         x = self._inverse.get(value)
         if x is None:
             x, y = self._make(len(self._sequence), value)
             self._inverse[value] = x
             self._sequence.append(y)
+            self._meta.append(meta)
         return x
 
     @property
     def sequence(self):
         return self._sequence
+
+    @property
+    def meta(self):
+        return self._meta
 
 
 class ObjectLexicon(Lexicon):
@@ -301,13 +307,14 @@ class Archive:
 
     def make_nlps(self):
         res = []
-        for nlp_id, nlp_data in enumerate(self._nlps.sequence):
+        for tagger_id, (signature, meta) in enumerate(zip(self._nlps.sequence, self._nlps.meta)):
             nlp_tagger_ids = []
-            for tagger_id, tagger in enumerate(self._taggers.sequence):
-                if tagger.nlp_id == nlp_id:
-                    nlp_tagger_ids.append(tagger_id)
+            for tag_id, tag in enumerate(self._taggers.sequence):
+                if tag.nlp_id == tagger_id:
+                    nlp_tagger_ids.append(tag_id)
             res.append(archive_proto.Tagger.new_message(
-                spec=nlp_data,
+                guid=meta['guid'],
+                signature=signature,
                 codes=nlp_tagger_ids))
         return res
 
@@ -320,10 +327,12 @@ class Archive:
                 values=tagger.values))
         return res
 
-    def register_nlp(self, nlp):
-        return self._nlps.add(orjson.dumps(nlp))
+    def register_tagger(self, nlp, guid):
+        return self._nlps.add(orjson.dumps(nlp), meta={
+            'guid': guid
+        })
 
-    def register_tagger(self, nlp_id, tag_name):
+    def register_tag(self, nlp_id, tag_name):
         return self._taggers.add((nlp_id, tag_name))
 
     def _add_index(self, utf8_text, external_key):
@@ -342,19 +351,19 @@ class Archive:
         temp_taggers = {}
 
         for nlp_data, nlp_vectors_data in zip(data["taggers"], vectors_data):
-            nlp_id = self.register_nlp(nlp_data["tagger"])
+            tagger_id = self.register_tagger(nlp_data["tagger"], guid=nlp_data["guid"])
             for tag_name, tag_data in nlp_data["tags"].items():
-                tagger = self.register_tagger(nlp_id, tag_name)
+                x_tag = self.register_tag(tagger_id, tag_name)
 
-                assert tagger.id not in temp_taggers
+                assert x_tag.id not in temp_taggers
                 temp_tagger = TempTagger(
-                    tagger.id, nlp_vectors_data.get(tag_name))
-                temp_taggers[tagger.id] = temp_tagger
+                    x_tag.id, nlp_vectors_data.get(tag_name))
+                temp_taggers[x_tag.id] = temp_tagger
 
                 for tag_i, tag in enumerate(tag_data):
                     temp_tagger.add_tag(
                         i=tag_i,
-                        labels=[tagger.make_label(x) for x in tag.get("labels", [])],
+                        labels=[x_tag.make_label(x) for x in tag.get("labels", [])],
                         parent=tag.get("parent"),
                         span=span_factory.from_json(tag))
 

@@ -1,5 +1,5 @@
 import parsimonious
-from .common import Name
+from nlabel.io.json.name import Name
 
 
 class TagNameVisitor(parsimonious.NodeVisitor):

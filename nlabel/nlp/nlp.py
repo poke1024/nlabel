@@ -1,5 +1,6 @@
 import time
 import datetime
+import uuid
 
 from typing import List, Union
 
@@ -8,8 +9,8 @@ from nlabel.nlp.tagger.stanza import StanzaTagger
 from nlabel.nlp.tagger.flair import FlairTagger
 from nlabel.nlp.tagger.pavlov import PavlovTagger
 from nlabel.nlp.core import Tagger, Text
+from nlabel.io.json.group import Tagger as JsonTagger
 from nlabel.io.json.group import Group
-from nlabel.io.selector import One
 
 
 class NLP:
@@ -89,6 +90,8 @@ class NLP:
     def _make_doc(self, built_data, item_data):
         raw_data, raw_vectors_data = built_data
 
+        raw_data['guid'] = str(uuid.uuid4()).upper()
+
         data = {
             'text': item_data['text'],
             'taggers': [raw_data],
@@ -103,7 +106,7 @@ class NLP:
         if external_key is not None:
             data['external_key'] = external_key
 
-        return Group(data).view(One())
+        return Group(data).view(JsonTagger(raw_data))
 
     def __call__(self, text: str, meta: dict = None, external_key: Union[str, dict] = None):
         return self._make_doc(

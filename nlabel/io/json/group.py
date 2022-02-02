@@ -1,6 +1,9 @@
 from .loader import Loader, Document
 from ..selector import select_taggers
+from .name import Name
+
 from cached_property import cached_property
+from collections import Counter
 
 import itertools
 import json
@@ -21,19 +24,26 @@ def _distinct(values):
 
 
 class Tag:
-    def __init__(self, tagger, name):
+    def __init__(self, tagger, name: Name):
         self._tagger = tagger
         self._name = name
+
+    def rename(self, name):
+        return Tag(self._tagger, Name(self._name.internal, name))
 
     @property
     def tagger(self):
         return self._tagger
 
+    @property
+    def label_type(self):
+        return 'str'
+
     def __str__(self):
-        return self._name
+        return self._name.external
 
     def __repr__(self):
-        return f"'{self._name}'"
+        return f"'{self._name.external}'"
 
 
 class TaggerPrivate:
@@ -47,13 +57,15 @@ class TaggerPrivate:
     @staticmethod
     def from_meta(data):
         return Tagger({
-            'tagger': data['tagger'],
+            'guid': data['guid'],
+            'tagger': data['signature'],
             'tags': dict((k, None) for k in data['tags'])
         })
 
     def as_meta(self):
         return {
-            'tagger': self._data['tagger'],
+            'guid': self._data['guid'],
+            'signature': self._data['tagger'],
             'tags': list(self._data['tags'].keys())
         }
 
@@ -72,7 +84,7 @@ class Tagger:
 
     @cached_property
     def tags(self):
-        return [Tag(self, k) for k in self._data['tags'].keys()]
+        return [Tag(self, Name(k)) for k in self._data['tags'].keys()]
 
     def __iter__(self):
         for x in self.tags:
@@ -81,7 +93,7 @@ class Tagger:
     def __getattr__(self, k):
         if k not in self._data['tags']:
             raise KeyError(k)
-        return Tag(self, k)
+        return Tag(self, Name(k))
 
     def __str__(self):
         return yaml.dump(self.signature)
@@ -202,6 +214,10 @@ class Group:
         combined = shared_values.copy()
         combined['taggers'] = list(itertools.chain(*[x['taggers'] for x in data]))
         combined['vectors'] = list(itertools.chain(*[x['vectors'] for x in data]))
+
+        tagger_guids = Counter([x['guid'] for x in combined['taggers']])
+        if any(x > 1 for x in tagger_guids.values()):
+            raise RuntimeError("cannot join due to duplicate tagger GUIDs")
 
         return Group(combined)
 

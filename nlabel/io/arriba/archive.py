@@ -32,7 +32,8 @@ class Iterator:
         tagger_specs = []
         for tagger in self._archive.taggers:
             tagger_specs.append({
-                'tagger': orjson.loads(tagger.spec),
+                'guid': tagger.guid,
+                'tagger': orjson.loads(tagger.signature),
                 'tags': dict((x.name, (i, x)) for i, x in [(i, codes[i]) for i in tagger.codes])
             })
 
