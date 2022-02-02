@@ -55,7 +55,7 @@ class Tag(Base):
     __tablename__ = 'tag'
 
     id = Column(Integer, primary_key=True)
-    tagger_id = Column(Integer, ForeignKey('tagger.id'), index=True)
+    tagger_id = Column(Integer, ForeignKey('tagger.id'))
     tagger = relationship("Tagger", back_populates="tags", uselist=False)
     name = Column(String, nullable=False)
     instances = relationship("TagInstances", lazy="dynamic", back_populates="tag")
