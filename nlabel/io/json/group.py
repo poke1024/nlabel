@@ -24,12 +24,31 @@ def _distinct(values):
 
 
 class Tag:
-    def __init__(self, tagger, name: Name):
+    _default_types = {
+        'morph': 'strs',
+        'feats': 'strs'
+    }
+
+    @staticmethod
+    def _default_label_type(tagger):
+        return Tag._default_types.get(tagger, 'str')
+
+    def __init__(self, tagger, name: Name, label_type=None):
         self._tagger = tagger
         self._name = name
+        if label_type:
+            self._label_type = label_type
+        else:
+            self._label_type = Tag._default_label_type(name.internal)
 
-    def rename(self, name):
-        return Tag(self._tagger, Name(self._name.internal, name))
+    def to(self, name: str = None, label_type: str = None):
+        if name is None:
+            new_name = self._name
+        else:
+            new_name = Name(self._name.internal, name)
+        if label_type is None:
+            label_type = self._label_type
+        return Tag(self._tagger, new_name, label_type)
 
     @property
     def tagger(self):
@@ -37,7 +56,7 @@ class Tag:
 
     @property
     def label_type(self):
-        return 'str'
+        return self._label_type
 
     def __str__(self):
         return self._name.external
