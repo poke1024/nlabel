@@ -1,5 +1,4 @@
 import contextlib
-import functools
 import orjson
 import h5py
 import zipfile
@@ -7,7 +6,7 @@ import zipfile
 from tqdm.auto import tqdm
 from cached_property import cached_property
 
-from nlabel.io.common import save_archive
+from nlabel.io.common import make_writer
 from nlabel.io.json.archive import Archive as AbstractArchive
 from nlabel.io.json.group import Group, TaggerPrivate as JsonTagger, TaggerList as JsonTaggerList
 from nlabel.io.json.loader import Loader
@@ -78,20 +77,21 @@ class Archive(AbstractArchive):
 
                 yield stem, Group(data)
 
-    def _keyed_collections(self, progress):
+    def _groups(self, progress):
         external_keys = {}
         for k, indices in self.external_keys.items():
             for i in indices:
                 external_keys[i] = k
 
-        for stem, doc in self._collections(progress=progress):
-            yield external_keys.get(int(stem)), doc
+        for stem, group in self._collections(progress=progress):
+            yield external_keys.get(int(stem)), group
 
-    def save(self, path, engine, export_opts=None, exist_ok=False, progress=True):
-        save_archive(
-            path, engine,
-            list(self.taggers), functools.partial(self._keyed_collections, progress=progress),
-            export_opts=export_opts, exist_ok=exist_ok)
+    def save(self, path, engine, options=None, exist_ok=False, progress=True):
+        w = make_writer(path, engine, exist_ok=exist_ok)
+        options = w.set_options(options)
+        if options:
+            raise ValueError(f"unsupported options {options}")
+        w.write(self._groups(progress=progress), self.taggers)
 
     def __len__(self):
         return self._size

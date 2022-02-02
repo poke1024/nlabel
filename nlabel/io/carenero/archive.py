@@ -1,14 +1,17 @@
 import json
+import traceback
+
 import orjson
 import contextlib
-import functools
+import concurrent.futures
 import numpy as np
 import logging
+import queue
 
 from tqdm import tqdm
 from typing import List, Union
 
-from nlabel.io.common import save_archive
+from nlabel.io.common import make_writer
 from nlabel.io.json.loader import Loader
 from nlabel.io.json.group import Group, Tagger as JsonTagger, TaggerList as JsonTaggerList
 from nlabel.io.json.archive import Archive as AbstractArchive
@@ -223,15 +226,15 @@ class Archive(AbstractArchive):
 
         return True
 
-    def _collections(self, progress=True, **kwargs):
+    def _groups(self, progress=True, **kwargs):
         exporter = Exporter(self, migrate=self._migrate, **kwargs)
 
         n = self._session.query(Text).count()
         query = self._session.query(Text).yield_per(100)
 
         for text in tqdm(query, total=n, disable=not progress):
-            for doc in exporter.export(text):
-                yield text.decoded_external_key, doc
+            for group in exporter.export(text):
+                yield text.decoded_external_key, group
 
     def _fast_iter(self, *selectors, vectors=True):
         loader = Loader(*selectors)
@@ -260,14 +263,38 @@ class Archive(AbstractArchive):
     def iter(self, *selectors, progress=True):
         loader = Loader(*selectors, taggers=self.taggers)
 
-        for _, collection in self._collections(progress=progress):
-            yield loader(collection)
+        for _, group in self._groups(progress=progress):
+            yield loader(group)
 
-    def save(self, path, engine, export_opts=None, exist_ok=False, progress=True):
-        save_archive(
-            path, engine,
-            list(self.taggers), functools.partial(self._collections, progress=progress),
-            export_opts=export_opts, exist_ok=exist_ok)
+    def save(self, path, engine, options=None, exist_ok=False, progress=True):
+        group_q = queue.Queue(maxsize=16)
+
+        def groups_from_queue():
+            while True:
+                message = group_q.get()
+
+                if message == "STOP":
+                    break
+
+                yield message
+
+        writer = make_writer(path, engine, exist_ok=exist_ok)
+        options = writer.set_options(options)
+
+        def save(taggers):
+            try:
+                writer.write(groups_from_queue(), taggers)
+            except:
+                traceback.print_exc()
+                raise
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            executor.submit(save, list(self.taggers))
+
+            for k, group in self._groups(progress=progress, **options):
+                group_q.put((k, group))
+
+            group_q.put("STOP")
 
 
 @contextlib.contextmanager

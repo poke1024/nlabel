@@ -64,8 +64,6 @@ def to_path(p, suffix):
 
 
 def _profile(export, docs, *args, n=100, **kwargs):
-    from nlabel.io.arriba.generate import make_archive as make_arriba_archive
-
     import cProfile
     import itertools
     with cProfile.Profile() as pr:
@@ -81,42 +79,45 @@ def _profile(export, docs, *args, n=100, **kwargs):
         f.write(s.getvalue())
 
 
-def save_archive(path, engine, taggers, keyed_docs, export_opts=None, exist_ok=False):
-    from nlabel.io.arriba.generate import make_archive as make_arriba_archive
-    from nlabel.io.bahia.generate import make_archive as make_bahia_archive
+class AbstractWriter:
+    def __init__(self, path, exist_ok=False):
+        self._path = path
+        self._exist_ok = exist_ok
 
-    base_path = to_path(path, '.nlabel')
+    def set_options(self, options):
+        raise NotImplementedError()
 
-    if base_path.exists():
-        if exist_ok:
-            shutil.rmtree(base_path)
-        else:
-            raise RuntimeError(f"{base_path} already exists")
+    def _write(self, base_path, groups, taggers):
+        raise NotImplementedError()
 
-    base_path.mkdir()
+    def write(self, groups, taggers):
+        base_path = to_path(self._path, '.nlabel')
 
-    try:
-        if not export_opts:
-            export_opts = {}
-
-        if engine == 'bahia':
-            export_keys = export_opts.get('export_keys', True)
-            export_opts = dict((k, v) for k, v in export_opts.items() if k != 'export_keys')
-
-            docs = keyed_docs(**export_opts)
-            make_bahia_archive(taggers, docs, base_path, export_keys=export_keys)
-            #_profile(make_bahia_archive, docs, base_path, export_keys=export_keys)
-        elif engine == 'arriba':
-            docs = keyed_docs(**export_opts)
-            make_arriba_archive(taggers, docs, base_path)
-            #_profile(make_arriba_archive, docs, base_path)
-        else:
-            raise ValueError(f'unsupported storage engine {engine}')
-
-    except:
         if base_path.exists():
-            shutil.rmtree(base_path)
-        raise
+            if self._exist_ok:
+                shutil.rmtree(base_path)
+            else:
+                raise RuntimeError(f"{base_path} already exists")
+
+        base_path.mkdir()
+
+        try:
+            self._write(base_path, groups, taggers)
+        except:
+            if base_path.exists():
+                shutil.rmtree(base_path)
+            raise
+
+
+def make_writer(path, engine, exist_ok=False):
+    if engine == 'bahia':
+        from nlabel.io.bahia.generate import BahiaWriter
+        return BahiaWriter(path, exist_ok=exist_ok)
+    elif engine == 'arriba':
+        from nlabel.io.arriba.generate import ArribaWriter
+        return ArribaWriter(path, exist_ok=exist_ok)
+    else:
+        raise ValueError(f'unsupported storage engine {engine}')
 
 
 class ArchiveInfo:

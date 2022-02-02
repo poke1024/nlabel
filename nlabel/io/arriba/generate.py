@@ -16,8 +16,11 @@ from nlabel.io.json.group import split_data
 from nlabel.io.common import AbstractSpanFactory
 from nlabel.io.arriba.schema import load_schema
 from nlabel.io.guid import archive_guid as make_archive_guid
+from nlabel.io.common import AbstractWriter
+
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String
+
 from pathlib import Path
 
 
@@ -446,69 +449,79 @@ def make_session(path):
     return session
 
 
-def make_archive(taggers, keyed_docs, path: Path, commit_freq: int = 500):
-    dbs = [
-        'index'
-    ]
+class ArribaWriter(AbstractWriter):
+    def __init__(self, path, exist_ok=False):
+        super().__init__(path, exist_ok=exist_ok)
+        self.commit_freq: int = 50
 
-    db_paths = {}
-    db_sessions = {}
+    def set_options(self, options):
+        options = options or {}
+        self.commit_freq = options.get('commit_freq', 50)
+        return dict((k, v) for k, v in options.items() if k not in ('commit_freq',))
 
-    for db in dbs:
-        db_path = path / f"{db}.sqlite"
-        if db_path.exists():
-            raise RuntimeError(f"{db_path} already exists")
-        db_paths[db] = db_path
+    def _write(self, path, groups, taggers):
+        dbs = [
+            'index'
+        ]
 
-    vectors_path = path / "vectors.h5"
-    with h5py.File(vectors_path, "w") as vf:
+        db_paths = {}
+        db_sessions = {}
 
-        try:
-            for db in dbs:
-                db_sessions[db] = make_session(db_paths[db])
+        for db in dbs:
+            db_path = path / f"{db}.sqlite"
+            if db_path.exists():
+                raise RuntimeError(f"{db_path} already exists")
+            db_paths[db] = db_path
 
-            with dbm.open(str(path / 'temp'), 'n') as temp_db:
+        vectors_path = path / "vectors.h5"
+        with h5py.File(vectors_path, "w") as vf:
 
-                archive = Archive(
-                    temp_db,
-                    db_sessions['index'],
-                    vf)
-                for i, (external_key, doc) in enumerate(keyed_docs):
-                    archive.add_doc(
-                        doc,
-                        external_key=json.dumps(external_key, sort_keys=True))
-                    if i % commit_freq == 0:
-                        archive.commit()
-                with open(path / "archive.bin", 'wb') as f:
-                    archive.save_archive(f)
+            try:
+                for db in dbs:
+                    db_sessions[db] = make_session(db_paths[db])
 
-            archive_guid = make_archive_guid()
-            with open(path / "meta.json", "w") as f:
-                f.write(json.dumps({
-                    'type': 'archive',
-                    'engine': 'arriba',
-                    'version': 1,
-                    'guid': archive_guid,
-                    'taggers': [x._.as_meta() for x in taggers]
-                }))
+                with dbm.open(str(path / 'temp'), 'n') as temp_db:
 
-            vf.attrs['archive'] = archive_guid
+                    archive = Archive(
+                        temp_db,
+                        db_sessions['index'],
+                        vf)
+                    for i, (external_key, doc) in enumerate(groups):
+                        archive.add_doc(
+                            doc,
+                            external_key=json.dumps(external_key, sort_keys=True))
+                        if i % self.commit_freq == 0:
+                            archive.commit()
+                    with open(path / "archive.bin", 'wb') as f:
+                        archive.save_archive(f)
 
-        except:
-            for session in db_sessions.values():
-                session.close()
-            db_sessions = {}
+                archive_guid = make_archive_guid()
+                with open(path / "meta.json", "w") as f:
+                    f.write(json.dumps({
+                        'type': 'archive',
+                        'engine': 'arriba',
+                        'version': 1,
+                        'guid': archive_guid,
+                        'taggers': [x._.as_meta() for x in taggers]
+                    }))
 
-            for db_path in db_paths.values():
-                db_path.unlink(missing_ok=True)
+                vf.attrs['archive'] = archive_guid
 
-            raise
+            except:
+                for session in db_sessions.values():
+                    session.close()
+                db_sessions = {}
 
-        finally:
-            for p in list(path.iterdir()):
-                if p.stem == 'temp':
-                    p.unlink()
+                for db_path in db_paths.values():
+                    db_path.unlink(missing_ok=True)
 
-            for session in db_sessions.values():
-                session.close()
-            db_sessions = {}
+                raise
+
+            finally:
+                for p in list(path.iterdir()):
+                    if p.stem == 'temp':
+                        p.unlink()
+
+                for session in db_sessions.values():
+                    session.close()
+                db_sessions = {}

@@ -5,72 +5,104 @@ import zipfile
 
 from nlabel.io.json.group import split_data
 from nlabel.io.guid import archive_guid as make_archive_guid
+from nlabel.io.common import AbstractWriter
 
 
-def make_archive(taggers, keyed_docs, path, export_keys=True, compression=None):
-    if compression is False:
-        json_compression = zipfile.ZIP_STORED
-        json_compresslevel = 0
-        vectors_compression = None
-    elif compression is None:
-        json_compression = zipfile.ZIP_DEFLATED
-        json_compresslevel = 4
-        vectors_compression = 'lzf'
-    else:
-        json_compression = compression.get('json', {}).get('algorithm', zipfile.ZIP_DEFLATED)
-        json_compresslevel = compression.get('json', {}).get('level', 4)
-        vectors_compression = compression.get('vectors', 'lzf')
+class BahiaWriter(AbstractWriter):
+    def __init__(self, path, exist_ok=False):
+        super().__init__(path, exist_ok=exist_ok)
 
-    any_vectors = False
+        self.compression = None
+        self.export_keys = True
 
-    archive_guid = make_archive_guid()
-    with open(path / "meta.json", "w") as f:
-        f.write(json.dumps({
-            'type': 'archive',
-            'engine': 'bahia',
-            'version': 1,
-            'guid': archive_guid,
-            'taggers': [x._.as_meta() for x in taggers]
-        }))
+    def set_options(self, options):
+        options = options or {}
+        self.compression = options.get('compression')
+        self.export_keys = options.get('export_keys', True)
+        return dict((k, v) for k, v in options.items() if k not in ('compression', 'export_keys'))
 
-    vectors_path = path / "vectors.h5"
-    assert not vectors_path.exists()
-    try:
-        with h5py.File(vectors_path, "w") as vf:
-            vf.attrs['archive'] = archive_guid
+    @property
+    def _compression_dict(self):
+        if self.compression is False:
+            return {
+                'zip': {
+                    'compression': zipfile.ZIP_STORED,
+                    'compresslevel': 0
+                },
+                'h5': {
+                    'compression': None
+                }
+            }
+        elif self.compression is None:
+            return {
+                'zip': {
+                    'compression': zipfile.ZIP_DEFLATED,
+                    'compresslevel': 4
+                },
+                'h5': {
+                    'compression': 'lzf'
+                }
+            }
+        else:
+            return {
+                'zip': {
+                    'compression': self.compression.get('zip', {}).get('algorithm', zipfile.ZIP_DEFLATED),
+                    'compresslevel': self.compression.get('zip', {}).get('level', 4)
+                },
+                'h5': {
+                    'compression': self.compression.get('h5', 'lzf')
+                }
+            }
 
-            with zipfile.ZipFile(
-                    path / "documents.zip", "w",
-                    compression=json_compression,
-                    compresslevel=json_compresslevel) as zf:
+    def _write(self, path, groups, taggers):
+        any_vectors = False
 
-                if export_keys:
-                    external_keys = collections.defaultdict(list)
-                else:
-                    external_keys = None
+        archive_guid = make_archive_guid()
+        with open(path / "meta.json", "w") as f:
+            f.write(json.dumps({
+                'type': 'archive',
+                'engine': 'bahia',
+                'version': 1,
+                'guid': archive_guid,
+                'taggers': [x._.as_meta() for x in taggers]
+            }))
 
-                for i, (key, doc) in enumerate(keyed_docs):
-                    if export_keys:
-                        external_keys[json.dumps(key, sort_keys=True)].append(i)
+        vectors_path = path / "vectors.h5"
+        assert not vectors_path.exists()
+        try:
+            with h5py.File(vectors_path, "w") as vf:
+                vf.attrs['archive'] = archive_guid
 
-                    json_data, vectors_data = split_data(doc.data)
+                compression = self._compression_dict
+                with zipfile.ZipFile(
+                        path / "documents.zip", "w", **compression['zip']) as zf:
 
-                    if any(x for x in vectors_data):
-                        any_vectors = True
-                        doc_group = vf.create_group(str(i))
-                        for j, nlp_vectors_data in enumerate(vectors_data):
-                            if nlp_vectors_data:
-                                nlp_group = doc_group.create_group(str(j))
-                                for k, v in nlp_vectors_data.items():
-                                    nlp_group.create_dataset(
-                                        k, data=v,
-                                        compression=vectors_compression)
+                    if self.export_keys:
+                        external_keys = collections.defaultdict(list)
+                    else:
+                        external_keys = None
 
-                    zf.writestr(f"{i}.json", json.dumps(json_data))
+                    for i, (key, doc) in enumerate(groups):
+                        if self.export_keys:
+                            external_keys[json.dumps(key, sort_keys=True)].append(i)
 
-                if export_keys:
-                    zf.writestr(f"keys.json", json.dumps(external_keys))
+                        json_data, vectors_data = split_data(doc.data)
 
-    finally:
-        if not any_vectors:
-            vectors_path.unlink(missing_ok=True)
+                        if any(x for x in vectors_data):
+                            any_vectors = True
+                            doc_group = vf.create_group(str(i))
+                            for j, nlp_vectors_data in enumerate(vectors_data):
+                                if nlp_vectors_data:
+                                    nlp_group = doc_group.create_group(str(j))
+                                    for k, v in nlp_vectors_data.items():
+                                        nlp_group.create_dataset(
+                                            k, data=v, **compression['h5'])
+
+                        zf.writestr(f"{i}.json", json.dumps(json_data))
+
+                    if self.export_keys:
+                        zf.writestr(f"keys.json", json.dumps(external_keys))
+
+        finally:
+            if not any_vectors:
+                vectors_path.unlink(missing_ok=True)
