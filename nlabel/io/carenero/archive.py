@@ -24,7 +24,7 @@ from nlabel.io.json import Document
 def _result_to_doc(result, vectors=True, migrate=None):
     text = result.text
 
-    json_data = orjson.loads(result.content)
+    json_data = orjson.loads(result.data)
 
     if migrate is not None:
         json_data = migrate(json_data)
@@ -44,7 +44,7 @@ def _result_to_doc(result, vectors=True, migrate=None):
     assert 'taggers' not in json_data
     json_data['taggers'] = [{
         'guid': result.tagger.guid,
-        'tagger': orjson.loads(result.tagger.description),
+        'tagger': orjson.loads(result.tagger.signature),
         'tags': json_data['tags']
     }]
     del json_data['tags']
@@ -95,15 +95,15 @@ class Exporter:
                     err_data = {
                         'text': result.text.text,
                         'taggers': [{
-                            'tagger': json.loads(result.tagger.description),
-                            'error': json.loads(result.content)
+                            'tagger': json.loads(result.tagger.signature),
+                            'error': json.loads(result.data)
                         }]
                     }
                     docs.append(Group(err_data))
                     has_err = True
                 else:
                     raise RuntimeError(
-                        f"encountered failed result on '{text.external_key}': {json.loads(result.content)}")
+                        f"encountered failed result on '{text.external_key}': {json.loads(result.data)}")
 
         if self._errors_only and not has_err:
             return None
@@ -251,7 +251,7 @@ class Archive(AbstractArchive):
         for tagger in self._session.query(Tagger).yield_per(100):
             taggers.append(JsonTagger({
                 'guid': tagger.guid,
-                'tagger': orjson.loads(tagger.description),
+                'tagger': orjson.loads(tagger.signature),
                 'tags': dict((x.name, None) for x in tagger.tags)
             }))
         return JsonTaggerList(taggers)

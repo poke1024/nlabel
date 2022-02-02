@@ -14,6 +14,7 @@ import falcon
 import click
 import json
 import functools
+import uuid
 import nlabel.version
 
 
@@ -45,7 +46,7 @@ class TaggersByIdResource:
                 resp.status = falcon.HTTP_204
             else:
                 resp.status = falcon.HTTP_200
-                resp.text = json.dumps(tagger.description)
+                resp.text = json.dumps(tagger.signature)
         finally:
             session.close()
 
@@ -65,9 +66,11 @@ class TaggersResource:
                 tagger_data, sort_keys=True)
 
             tagger = session.query(Tagger).filter_by(
-                description=tagger_json).first()
+                signature=tagger_json).first()
             if tagger is None:
-                tagger = Tagger(description=tagger_json)
+                tagger = Tagger(
+                    guid=str(uuid.uuid4()).upper(),
+                    signature=tagger_json)
                 session.add(tagger)
                 session.commit()
                 session.refresh(tagger)
@@ -180,7 +183,7 @@ class ResultsResource:
             data_acc = {
                 'id': lambda: result.id,
                 'status': lambda: result.status.name,
-                'content': lambda: result.content,
+                'data': lambda: result.data,
                 'time_created': lambda: result.time_created.isoformat()
             }
 
@@ -218,7 +221,7 @@ class ResultsResource:
                 tagger=tagger,
                 text=text,
                 status=ResultStatus[result_data['status']],
-                json_data=result_data['content'])
+                json_data=result_data['data'])
 
             vectors = result_data.get('vectors')
             if vectors is not None:

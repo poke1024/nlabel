@@ -19,17 +19,17 @@ from nlabel.io.json.group import Group
 
 class RemoteResultFactory(ResultFactory):
     def __init__(self, nlp):
-        self._tagger_description = json.dumps(
-            nlp.description, sort_keys=True)
+        self._tagger_signature = json.dumps(
+            nlp.signature, sort_keys=True)
 
     def _check_tagger(self, tagger):
-        assert self._tagger_description == json.dumps(
+        assert self._tagger_signature == json.dumps(
             tagger, sort_keys=True)
 
     def _make_succeeded(self, json_data, vectors_data):
         result = {
             'status': ResultStatus.succeeded.name,
-            'content': json_data
+            'data': json_data
         }
 
         if vectors_data:
@@ -48,7 +48,7 @@ class RemoteResultFactory(ResultFactory):
     def make_failed(self, err):
         return {
             'status': ResultStatus.failed.name,
-            'content': err
+            'data': err
         }
 
 
@@ -255,7 +255,7 @@ def batch_add(
 
     # avoid race condition when creating new tagger.
     response = requests.post(
-        f"{api_url}/taggers", json=nlp.description,
+        f"{api_url}/taggers", json=nlp.signature,
         auth=auth, timeout=timeout)
     if response.status_code != 200:
         raise RuntimeError(

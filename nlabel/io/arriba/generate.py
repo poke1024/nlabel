@@ -480,7 +480,7 @@ def make_archive(taggers, keyed_docs, path: Path, commit_freq: int = 500):
                     'engine': 'arriba',
                     'version': 1,
                     'guid': archive_guid,
-                    'taggers': [x.as_meta() for x in taggers]
+                    'taggers': [x._.as_meta() for x in taggers]
                 }))
 
             vf.attrs['archive'] = archive_guid

@@ -14,15 +14,15 @@ from nlabel import Slice
 
 def migrate_nlp_to_taggers(result):
     assert result.status == ResultStatus.succeeded
-    data = json.loads(result.content)
+    data = json.loads(result.data)
     nlps = data.get('nlps')
     if nlps is not None:
         data = data.copy()
         assert len(nlps) == 1
         del data['nlps']
-        assert json.dumps(nlps[0]['nlp'], sort_keys=True) == result.tagger.description
+        assert json.dumps(nlps[0]['nlp'], sort_keys=True) == result.tagger.signature
         data['tags'] = nlps[0]['tags']
-        result.content = json.dumps(data)
+        result.data = json.dumps(data)
         return True
     else:
         return False

@@ -19,22 +19,22 @@ class TaggerFactory:
 
     @functools.lru_cache(maxsize=8)
     def from_instance(self, nlp):
-        return self.from_data(nlp.description)
+        return self.from_data(nlp.signature)
 
     def from_data(self, data):
         return self._from_data_cached(
             json.dumps(data, sort_keys=True))
 
     @functools.lru_cache(maxsize=8)
-    def _from_data_cached(self, description):
+    def _from_data_cached(self, signature):
         instance = self._session.query(Tagger).filter_by(
-            description=description).first()
+            signature=signature).first()
         if instance:
             return instance
         else:
             instance = Tagger(
                 guid=str(uuid.uuid4()).upper(),
-                description=description)
+                signature=signature)
             self._session.add(instance)
             self._session.commit()
             return instance
@@ -201,7 +201,7 @@ def json_to_result(tagger, text, status, json_data):
         tagger=tagger,
         text=text,
         status=status,
-        content=json.dumps(core_json_data),
+        data=json.dumps(core_json_data),
         tag_instances=x_tag_i)
 
 
@@ -211,7 +211,7 @@ class LocalResultFactory(ResultFactory):
         self._x_text = x_text
 
     def _check_tagger(self, tagger):
-        assert self._x_tagger.description == json.dumps(
+        assert self._x_tagger.signature == json.dumps(
             tagger, sort_keys=True)
 
     def _make_succeeded(self, json_data, vectors_data):
@@ -236,7 +236,7 @@ class LocalResultFactory(ResultFactory):
             text=self._x_text,
             tagger=self._x_tagger,
             status=ResultStatus.failed,
-            content=err)
+            data=err)
 
 
 def gen_message(nlp: CoreNLP, text: CoreText):

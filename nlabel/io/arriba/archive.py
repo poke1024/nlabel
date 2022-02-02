@@ -10,7 +10,7 @@ from cached_property import cached_property
 from ..common import binary_searcher
 from ..form import inflected_tag_forms
 from ..selector import make_selector
-from nlabel.io.json.group import Tagger as JsonTagger, TaggerList as JsonTaggerList
+from nlabel.io.json.group import TaggerPrivate as JsonTagger, TaggerList as JsonTaggerList
 from nlabel.io.arriba.document import Code, DocData, Document
 from nlabel.io.arriba.label import factories as label_factories
 from nlabel.io.arriba.schema import load_schema

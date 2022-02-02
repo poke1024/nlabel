@@ -30,7 +30,7 @@ def make_archive(taggers, keyed_docs, path, export_keys=True, compression=None):
             'engine': 'bahia',
             'version': 1,
             'guid': archive_guid,
-            'taggers': [x.as_meta() for x in taggers]
+            'taggers': [x._.as_meta() for x in taggers]
         }))
 
     vectors_path = path / "vectors.h5"

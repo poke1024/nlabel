@@ -36,13 +36,13 @@ class Tag:
         return f"'{self._name}'"
 
 
-class Tagger:
+class TaggerPrivate:
     def __init__(self, data):
         self._data = data
 
     @property
-    def id(self):
-        return self._data['guid']
+    def data(self):
+        return self._data
 
     @staticmethod
     def from_meta(data):
@@ -51,25 +51,44 @@ class Tagger:
             'tags': dict((k, None) for k in data['tags'])
         })
 
-    def as_dict(self):
-        return self._data
-
     def as_meta(self):
         return {
-            'tagger': self.properties,
+            'tagger': self._data['tagger'],
             'tags': list(self._data['tags'].keys())
         }
 
+
+class Tagger:
+    def __init__(self, data):
+        self._data = data
+
     @property
-    def properties(self):
+    def id(self):
+        return self._data['guid']
+
+    @property
+    def signature(self):
         return self._data['tagger']
 
     @cached_property
     def tags(self):
         return [Tag(self, k) for k in self._data['tags'].keys()]
 
+    def __iter__(self):
+        for x in self.tags:
+            yield x
+
+    def __getattr__(self, k):
+        if k not in self._data['tags']:
+            raise KeyError(k)
+        return Tag(self, k)
+
     def __str__(self):
-        return yaml.dump(self.properties)
+        return yaml.dump(self.signature)
+
+    @property
+    def _(self):
+        return TaggerPrivate(self._data)
 
 
 class TaggerList(list):

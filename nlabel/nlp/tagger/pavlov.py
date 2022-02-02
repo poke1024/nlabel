@@ -126,7 +126,7 @@ class PavlovTagger(Tagger):
             self._prototype['meta'] = meta
 
     @property
-    def description(self):
+    def signature(self):
         return self._prototype
 
     def process(self, text):

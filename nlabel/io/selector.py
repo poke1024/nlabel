@@ -144,7 +144,7 @@ def select_taggers(taggers, selector):
     tagger_selector = TaggerSelector(
         _expand_selector_all(selector))
     for x in taggers:
-        if tagger_selector.match_tagger(x.as_dict()['tagger']):
+        if tagger_selector.match_tagger(x._.data['tagger']):
             yield x
 
 

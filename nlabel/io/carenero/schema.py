@@ -45,7 +45,7 @@ class Tagger(Base):
 
     id = Column(Integer, primary_key=True)
     guid = Column(String, unique=True, nullable=False)
-    description = deferred(Column(String, unique=True))
+    signature = deferred(Column(String, unique=True))
     results = relationship("Result", lazy="dynamic")
     tags = relationship("Tag", lazy="dynamic")
 
@@ -110,7 +110,7 @@ class Result(Base):
     tagger_id = Column(Integer, ForeignKey('tagger.id'))
     tagger = relationship("Tagger", back_populates="results")
     status = Column(Enum(ResultStatus), index=True)
-    content = deferred(Column(String))
+    data = deferred(Column(String))
     vectors = relationship("Vectors", back_populates="result", lazy="dynamic")
     tag_instances = relationship("TagInstances", back_populates="result", lazy="dynamic")
     time_created = Column(DateTime(timezone=True), server_default=func.now())

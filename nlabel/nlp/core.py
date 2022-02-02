@@ -127,6 +127,10 @@ class Tagger:
             }
         }
 
+    @property
+    def signature(self):
+        raise NotImplementedError()
+
     def process(self, text):
         raise NotImplementedError()
 

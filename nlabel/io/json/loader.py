@@ -278,5 +278,5 @@ class Loader:
     def __call__(self, group):
         builder = ViewBuilder(group)
         tag_forms = self._selector.build(
-            [x.as_dict() for x in group.taggers], builder.add)
+            [x._.data for x in group.taggers], builder.add)
         return builder.make_view(tag_forms)

@@ -266,7 +266,7 @@ class FlairTagger(Tagger):
         self._renames = renames
 
     @property
-    def description(self):
+    def signature(self):
         return self._prototype
 
     def _split_sents(self, text):

@@ -142,7 +142,7 @@ class StanzaTagger(Tagger):
         self._renames = renames
 
     @property
-    def description(self):
+    def signature(self):
         return self._prototype
 
     def process(self, text):

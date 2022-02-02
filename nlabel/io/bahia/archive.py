@@ -9,7 +9,7 @@ from cached_property import cached_property
 
 from nlabel.io.common import save_archive
 from nlabel.io.json.archive import Archive as AbstractArchive
-from nlabel.io.json.group import Group, Tagger as JsonTagger, TaggerList as JsonTaggerList
+from nlabel.io.json.group import Group, TaggerPrivate as JsonTagger, TaggerList as JsonTaggerList
 from nlabel.io.json.loader import Loader
 
 

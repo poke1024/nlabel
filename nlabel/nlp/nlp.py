@@ -65,8 +65,8 @@ class NLP:
         return NLP(PavlovTagger(nlp, **kwargs))
 
     @property
-    def description(self):
-        return self._tagger.description
+    def signature(self):
+        return self._tagger.signature
 
     def _process(self, text):
         t0 = time.time()

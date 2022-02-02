@@ -233,7 +233,7 @@ class SpacyTagger(Tagger):
         self._vectors = vectors
 
     @property
-    def description(self):
+    def signature(self):
         return self._prototype
 
     def _has(self, klass):
