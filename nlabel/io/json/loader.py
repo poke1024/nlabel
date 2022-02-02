@@ -32,9 +32,13 @@ class Document:
     def save(self, path, exist_ok=False):
         self._collection.save(path, exist_ok=exist_ok)
 
-    @property
-    def __tags__(self):
-        return sorted(self._tag_spans.keys())
+    @cached_property
+    def tags(self):
+        tags = []
+        for x in self._tag_forms.values():
+            if not x.is_plural:
+                tags.append(x.tag)
+        return sorted(tags, key=lambda x: x.name)
 
     @property
     def collection(self):

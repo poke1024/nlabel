@@ -56,16 +56,11 @@ for sent in doc.sentences:
         print(token.text, token.upos, token.vector)
 ```
 
-You can ask a `doc` which tags it carries, so
+You can ask a `doc` which tags it carries, by calling `doc.tags`. In the example above, this
+would give:
 
 ```python3
-doc.__tags__
-```
-
-In the example above, the result would be:
-
-```python3
-['dep', 'ent', 'ent_iob', 'lemma', 'morph', 'pos', 'sentence', 'tag', 'token', 'upos', 'xpos']
+['dep', 'ent_iob', 'lemma', 'morph', 'sentence', 'token', 'upos', 'xpos']
 ```
 
 In the following sections, some of internal concepts
@@ -95,7 +90,7 @@ while
 ```python3
 for ent in doc.ents:
     for token in ent.tokens:
-        print(ent.label, token.text, token.pos)
+        print(ent.label, token.text, token.xpos)
 ```
 
 outputs
@@ -125,7 +120,7 @@ While `NLP` usually auto-detects the type of NLP parser you
 provide it, there are specialized constructors (`NLP.spacy`,
 `NLP.flair`, etc.) that cover some border cases.
 
-### Saving and Loading
+### Saving and Loading Documents
 
 Documents can be saved to disk:
 
@@ -150,130 +145,144 @@ with Document.open("path/to/file") as doc:
 
 ### Working with Archives
 
-To store data from multiple taggers and texts, nlabel
-offers `Archive`s.
+To store data from multiple taggers and texts, the approach
+from the last section would generate lots of separate files.
+nlabel offers a much better alternative through `Archive`s.
 
 There will be more detailed info on archives later on,
 for now, here is a quick run-through of how to use them.
 
 #### A first example
 
+This creates (or opens an existing) archive using the
+`carenero` engine (details later on), and adds a newly
+parsed document to it.
+
 ```
 with open_archive("/path/to/archive", engine="carenero") as archive:
-    doc = nlp1(text1)
+    doc = nlp(text)
     archive.add(doc)
 ```
 
-This would parse `text1` using `nlp1` and add the resulting
-doc to the archive.
+Opening the archive later would allow us to retrieve all documents:
+
+```
+with open_archive("/path/to/archive", "r") as archive:
+    for doc in archive.iter():
+        print(doc.text)
+```
+
+Archives know some more things like the number of documents -
+use `len(archive)` - or information about its taggers (see next
+section).
 
 #### Multiple Taggers
 
-### Groups and Views
-
-`Document`s can be combined into `Group`s, which will
-then contain information from multiple taggers:
-
-```python3
-from nlabel import Group
-
-group = Group.join([doc1, doc2])
-```
-
-A group contains data from multiple taggers for *one* shared text.
-If you need to collect data for multiple texts: nlabel's concept
-for that is *archives* (see below).
-
-To work with a group, it is necessary to select which
-tags should get mapped to which name, since tags of the same
-name from different taggers would clash otherwise.
-
-Calling `taggers_description` on a `Group` lists all taggers
-and their internals (think: model sheets) that were used to generate
-the group. Here is a real-world output using two taggers:
+Things get interesting when using more than one tagger, e.g.:
 
 ```
-0:
-  env:
-    machine: x86_64
-    platform: Linux-5.3.18-lp152.60-default-x86_64-with-glibc2.26
-    runtime:
-      nlpkit: '0.0.1a'
-      python: 3.9.7
-  library:
-    name: spacy
-    version: 3.2.1
-  model:
-    lang: de
-    name: core_news_lg
-    version: 3.2.0
-1:
-  env:
-    machine: x86_64
-    platform: Linux-3.10.0-1160.49.1.el7.x86_64-x86_64-with-glibc2.2.5
-    runtime:
-      nlpkit: '0.0.1a'
-      python: 3.8.6
-  library:
-    name: stanza
-    version: 1.3.0
-  model:
-    lang: de
+with open_archive("/path/to/archive", engine="carenero") as archive:
+    archive.add(nlp1(text))  # e.g. spacy
+    archive.add(nlp2(text))  # e.g. stanza
 ```
 
-nlabel does not attempt to give taggers a short string name.
-
-For a `tagger` selector to pick a specific tagger,
-it needs to identify unique properties in the description
-above. The following example picks four tags from a `spacy`
-tagger (assuming there is only one):
-
-```python3
-doc = group.view({
-    'tagger.library.name': 'spacy',
-    'tags': [
-        'sentence',
-        'token',
-        'pos',
-        'ent'
-    ]
-})
-```
-
-The form `'tagger.library.name': 'spacy'` is a short and more
-readable form of the following equivalent selector:
+In such an archive, calling ```archive.iter()``` will produce
+an error:
 
 ```
-'tagger': {
+there are 2 taggers with conflicting tag names in this archive,
+please use a selector
+```
+
+The reason for this error message is that spacy's and stanza's
+tag names clash, and nlabel would not know how to deciper `doc.tokens`
+to map either to spacy's or stanza's `token` data.
+
+To resolve this issue, we can specify which tagger to use in `iter`.
+
+To do this, we can first ask the archive for the taggers it knows
+by calling `archive.taggers`. Each tagger carries a unique signature
+that identifies it. For example, `print(archive.taggers[0])` might
+the following signature:
+
+```
+env:
+  machine: arm64
+  platform: macOS-12.1-arm64-arm-64bit
+  runtime:
+    nlabel: 0.0.1.dev0
+    python: 3.9.7
+library:
+  name: spacy
+  version: 3.2.1
+model:
+  lang: en
+  name: core_web_sm
+  version: 3.2.0
+renames:
+  pos: upos
+  tag: xpos
+type: nlp
+vectors:
+  token:
+    type: native
+```
+
+To to iterate over documents getting tag data from this tagger, we
+can use `archive.iter(archive.taggers[0])`.
+
+More commonly, we want to select a tagger based on its attributes,
+not on its index in an archive. To do this, we can use a MongoDB
+style query syntax:
+
+```
+spacy_tagger = archive.taggers[{
     'library': {
         'name': 'spacy'
     }
-}
-
+}]
 ```
 
-If there are multiple spacy taggers, the specification
-needs to be more precise to pick exactly one tagger,
-for example like this:
+This will return the tagger, that carries the name 'spacy' in the
+'library' section of its signature. If there are no or multiple
+such taggers, we will get a `KeyError`.
+
+As shorthand for the query above, you can also use:
 
 ```
-'tagger': {
-    'library': {
-        'name': 'spacy',
-        'version': '3.2.1'
-    },
-    'model': {
-      "name": "core_web_sm"
-    }
-}
+spacy_tagger = archive.taggers[{
+    'library.name': 'spacy'
+}]
 ```
 
-For more details on the structure of the `tagger` section of
-the filter above, see the [bahia json documentation](doc/bahia_json.txt).
+### Mixing Taggers
 
-Tags can be renamed by using `as`, e.g. `sentence as sent`.
+What happens if we want not exactly one tagger, but the output from multiple
+taggers.
 
-### Label types
+`Archive.iter()` also allows to specify single tags and even rename them.
+
+Using `spacy_tagger` from the last section and a new `stanza_tagger`:
+
+`for doc in archive.iter(
+    spacy_tagger.sentence,
+    spacy_tagger.xpos,
+    stanza_tagger.xpos.to('st_xpos'))):`
+
+With these docs, we now can access spacy's `sentence` and `xpos` tags,
+but also stanza's `xpos` tag, which we rename to `st_xpos` to avoid a
+name clash with spacy's `xpos' tag:
+
+```
+    for token in doc.tokens:  # spacy tokens
+        print(token.xpos)  # spacy xpos
+        print(token.st_xpos)  # stanza xpos
+```
+
+Note that this only works, if stanza's tokenization for a token exactly
+matches that of spacy.
+
+### Label Types
 
 There are four label types in nlabel:
 
@@ -290,28 +299,28 @@ multiple labels.
 The default type is `str`. The exception to this rule are morphology tags (e.g.
 spacy's `morph` and stanza's `feats`, which default to `strs`).
 
-To specify label types when creating a view on a `Group`, use `:` in the
-tag description, e.g. `pos:str` or `pos_en:labels`.
+To specify label types, use the `.to(label_type=x)` method on tags, when specifying
+them to `Archive.iter` or `Group.view`.
 
-### Bridging multiple taggers
+### Groups and Views
 
-nlabel can easily switch between labels from different taggers (assuming these
-taggers assigned the corresponding tags to same character span).
+`Group`s are an underlying building block of nlabel.
+You might not encounter them directly.
+
+A group contains data from multiple taggers for *one* shared text.
+If you need to collect data for multiple texts, use archives.
+
+`Document`s can be combined into `Group`s, which will
+then contain information from multiple taggers:
 
 ```python3
-doc = group.view({
-        'tagger.library.name': 'spacy',
-        'tags': ['sentence', 'token', 'pos as spacy_pos' ]
-    }, {
-        'tagger.library.name': 'flair',
-        'tags': ['pos as flair_pos']
-    })
+from nlabel import Group
 
-for sent in doc.sentences:
-    for token in sent.tokens:
-        print(token.text, token.spacy_pos, token.flair_pos)
-
+group = Group.join([doc1, doc2])
 ```
+
+`Group`s have a `view` method that works similar to the `iter`
+method available in `Archive`s.
 
 ### Computing Embeddings
 

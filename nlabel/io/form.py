@@ -2,13 +2,18 @@ from nlabel.io.json.name import Name
 
 
 class TagForm:
-    def __init__(self, name, label_factory):
+    def __init__(self, tag, name, label_factory):
+        self._tag = tag
         self._name = name
         self._label_factory = label_factory
 
     def inflections(self):
         yield self
         yield self.pluralize()
+
+    @property
+    def tag(self):
+        return self._tag
 
     @property
     def name(self):
@@ -37,17 +42,18 @@ class TagForm:
 
     def pluralize(self):
         return PluralTagForm(
-            self._name, self._label_factory)
+            self._tag, self._name, self._label_factory)
 
 
 class PluralTagForm(TagForm):
-    def __init__(self, name, label_factory):
+    def __init__(self, tag, name, label_factory):
         external_name = name.external
         if external_name.endswith('s'):
             plural_name = external_name + '_tags'
         else:
             plural_name = external_name + 's'
         super().__init__(
+            tag,
             Name(name.internal, plural_name),
             label_factory)
         self._singular_name = name
@@ -62,7 +68,7 @@ class PluralTagForm(TagForm):
 
     def singularize(self):
         return TagForm(
-            self._singular_name, self._label_factory)
+            self._tag, self._singular_name, self._label_factory)
 
 
 def inflected_tag_forms(tag_forms):

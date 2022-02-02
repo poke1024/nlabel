@@ -56,6 +56,10 @@ class Tag:
         return self._tagger
 
     @property
+    def name(self):
+        return self._name.external
+
+    @property
     def label_type(self):
         return self._label_type
 

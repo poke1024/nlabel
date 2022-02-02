@@ -8,4 +8,3 @@ from nlabel.io.common import to_path, open_archive, RemoteArchive
 from nlabel.io.slice import Slice
 from nlabel.io.json.loader import Document
 from nlabel.io.json.group import Group
-from nlabel.io.selector import Automatic, One, All
