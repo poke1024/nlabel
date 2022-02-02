@@ -90,8 +90,6 @@ class NLP:
     def _make_doc(self, built_data, item_data):
         raw_data, raw_vectors_data = built_data
 
-        raw_data['guid'] = str(uuid.uuid4()).upper()
-
         data = {
             'text': item_data['text'],
             'taggers': [raw_data],

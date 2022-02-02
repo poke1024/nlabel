@@ -1,10 +1,6 @@
 import collections
-import contextlib
 import numpy as np
-import json
-import itertools
-
-from nlabel.io.json.loader import Loader
+import uuid
 
 
 try:
@@ -73,7 +69,7 @@ class TagBuilder:
 
 
 class Builder:
-    def __init__(self, prototype, taggers=None, vectors:dict = None, renames=None):
+    def __init__(self, guid, signature, taggers=None, vectors:dict = None, renames=None):
         renames = renames if renames else {}
         self._taggers_data = dict(
             (renames.get(name, name), []) for name in taggers) if taggers else {}
@@ -81,7 +77,8 @@ class Builder:
         self._vectors = dict((renames.get(k, k), v) for k, v in vectors.items()) if vectors else dict()
         self._vectors_data = {}
         self._data = {
-            'tagger': prototype,
+            'guid': guid,
+            'tagger': signature,
             'tags': self._taggers_data
         }
 
@@ -113,6 +110,13 @@ class Builder:
 
 
 class Tagger:
+    def __init__(self):
+        self._guid = str(uuid.uuid4()).upper()
+
+    @property
+    def guid(self):
+        return self._guid
+
     @staticmethod
     def _env_data():
         import platform

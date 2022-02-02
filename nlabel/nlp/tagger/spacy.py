@@ -71,8 +71,8 @@ def _make_embedder(vectors, name):
 
 
 class Builder(AbstractBuilder):
-    def __init__(self, prototype, doc, vectors=None, renames=None):
-        super().__init__(prototype, (
+    def __init__(self, guid, signature, doc, vectors=None, renames=None):
+        super().__init__(guid, signature, (
             'sentence', 'token', 'lemma',
             'pos', 'tag', 'morph',
             'dep', 'ent_iob', 'ent'), vectors, renames)
@@ -246,7 +246,7 @@ class SpacyTagger(Tagger):
         import spacy
 
         builder = Builder(
-            self._prototype, doc,
+            self.guid, self._prototype, doc,
             vectors=self._vectors,
             renames=self._renames)
 

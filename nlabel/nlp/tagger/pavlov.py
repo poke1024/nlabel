@@ -12,8 +12,8 @@ def _derive_spans(text, tokens):
 
 
 class EntBuilder(Builder):
-    def __init__(self, prototype, model, sents, renames=None):
-        super().__init__(prototype, renames=renames)
+    def __init__(self, guid, signature, model, sents, renames=None):
+        super().__init__(guid, signature, renames=renames)
         self._model = model
         self._sents = sents
 
@@ -33,8 +33,8 @@ class EntBuilder(Builder):
 
 
 class MorphBuilder(Builder):
-    def __init__(self, prototype, model, sents, renames=None):
-        super().__init__(prototype, renames=renames)
+    def __init__(self, guid, signature, model, sents, renames=None):
+        super().__init__(guid, signature, renames=renames)
         self._model = model
         self._sents = sents
 
@@ -136,13 +136,13 @@ class PavlovTagger(Tagger):
 
         if self._kind == 'ent':
             builder = EntBuilder(
-                self._prototype, self._model, sents,
+                self.guid, self._prototype, self._model, sents,
                 renames=self._renames)
             builder.add_ent()
             return builder
         elif self._kind == 'morph':
             builder = MorphBuilder(
-                self._prototype, self._model, sents,
+                self.guid, self._prototype, self._model, sents,
                 renames=self._renames)
             builder.add_tag('token')
             builder.add_tag('lemma')

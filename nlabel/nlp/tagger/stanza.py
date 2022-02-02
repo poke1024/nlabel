@@ -4,8 +4,8 @@ import logging
 
 
 class StanzaBuilder(Builder):
-    def __init__(self, prototype, doc, renames=None):
-        super().__init__(prototype, (
+    def __init__(self, guid, signature, doc, renames=None):
+        super().__init__(guid, signature, (
             'sentence', 'token', 'lemma',
             'upos', 'xpos', 'feats',
             'dep', 'ent_bioes', 'ent'), renames=renames)
@@ -149,7 +149,7 @@ class StanzaTagger(Tagger):
         doc = self._nlp(text)
 
         builder = StanzaBuilder(
-            self._prototype, doc, renames=self._renames)
+            self.guid, self._prototype, doc, renames=self._renames)
 
         builder.add_sent()
         builder.add_token()

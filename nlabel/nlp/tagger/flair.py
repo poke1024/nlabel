@@ -95,8 +95,8 @@ def _make_embedder(vectors):
 
 
 class FlairBuilder(Builder):
-    def __init__(self, prototype, sents, vectors=None, renames=None):
-        super().__init__(prototype, vectors=vectors, renames=renames)
+    def __init__(self, guid, signature, sents, vectors=None, renames=None):
+        super().__init__(guid, signature, vectors=vectors, renames=renames)
 
         self._sents = sents
 
@@ -284,7 +284,7 @@ class FlairTagger(Tagger):
         sents = self._split_sents(text)
 
         builder = FlairBuilder(
-            self._prototype, sents,
+            self.guid, self._prototype, sents,
             vectors=self._vectors,
             renames=self._renames)
 
