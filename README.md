@@ -228,7 +228,7 @@ vectors:
     type: native
 ```
 
-To to iterate over documents getting tag data from this tagger, we
+To iterate over documents getting tag data from this tagger, we
 can use `archive.iter(archive.taggers[0])`.
 
 More commonly, we want to select a tagger based on its attributes,
