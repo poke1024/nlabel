@@ -1,10 +1,10 @@
 import collections
 import h5py
 import json
-import uuid
 import zipfile
 
 from nlabel.io.json.group import split_data
+from nlabel.io.guid import archive_guid as make_archive_guid
 
 
 def make_archive(taggers, keyed_docs, path, export_keys=True, compression=None):
@@ -23,7 +23,7 @@ def make_archive(taggers, keyed_docs, path, export_keys=True, compression=None):
 
     any_vectors = False
 
-    archive_guid = str(uuid.uuid4()).upper()
+    archive_guid = make_archive_guid()
     with open(path / "meta.json", "w") as f:
         f.write(json.dumps({
             'type': 'archive',

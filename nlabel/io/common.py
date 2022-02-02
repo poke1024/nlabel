@@ -2,10 +2,10 @@ import contextlib
 import numpy as np
 import shutil
 import json
-import uuid
 
 from numpy import searchsorted
 from pathlib import Path
+from nlabel.io.guid import archive_guid as make_archive_guid
 
 
 class AbstractSpanFactory:
@@ -173,7 +173,7 @@ class ArchiveInfo:
 
                 base_path.mkdir()
 
-                archive_guid = str(uuid.uuid4()).upper()
+                archive_guid = make_archive_guid()
 
                 meta = {
                     'type': 'archive',

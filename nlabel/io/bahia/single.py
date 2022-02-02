@@ -1,10 +1,10 @@
 import orjson
 import h5py
-import uuid
 import contextlib
 
 from nlabel.io.json.group import split_data, Group
 from nlabel.io.common import to_path
+from nlabel.io.guid import archive_guid as make_archive_guid
 
 
 @contextlib.contextmanager
@@ -50,7 +50,7 @@ def save_doc(doc, path, exist_ok=False):
     if not base_path.exists():
         base_path.mkdir()
 
-    doc_guid = str(uuid.uuid4()).upper()
+    doc_guid = make_archive_guid()
     with open(base_path / "meta.json", "wb") as f:
         f.write(orjson.dumps({
             'type': 'document',

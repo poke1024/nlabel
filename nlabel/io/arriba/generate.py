@@ -8,7 +8,6 @@ import itertools
 import hashlib
 import orjson
 import json
-import uuid
 import h5py
 import struct
 import sqlalchemy
@@ -16,6 +15,7 @@ import sqlalchemy
 from nlabel.io.json.group import split_data
 from nlabel.io.common import AbstractSpanFactory
 from nlabel.io.arriba.schema import load_schema
+from nlabel.io.guid import archive_guid as make_archive_guid
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String
 from pathlib import Path
@@ -482,7 +482,7 @@ def make_archive(taggers, keyed_docs, path: Path, commit_freq: int = 500):
                 with open(path / "archive.bin", 'wb') as f:
                     archive.save_archive(f)
 
-            archive_guid = str(uuid.uuid4()).upper()
+            archive_guid = make_archive_guid()
             with open(path / "meta.json", "w") as f:
                 f.write(json.dumps({
                     'type': 'archive',

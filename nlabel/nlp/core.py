@@ -1,6 +1,7 @@
 import collections
 import numpy as np
-import uuid
+
+from nlabel.io.guid import tagger_guid
 
 
 try:
@@ -111,7 +112,7 @@ class Builder:
 
 class Tagger:
     def __init__(self):
-        self._guid = str(uuid.uuid4()).upper()
+        self._guid = tagger_guid()
 
     @property
     def guid(self):

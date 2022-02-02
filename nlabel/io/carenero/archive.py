@@ -32,6 +32,7 @@ def _result_to_doc(result, vectors=True, migrate=None):
     json_data['text'] = text.text
     if text.meta:
         json_data['meta'] = orjson.loads(text.meta)
+    json_data['guid'] = text.guid
 
     if 'tags' in json_data:
         assert not result.tags

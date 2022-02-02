@@ -5,8 +5,9 @@ from nlabel.io.carenero.schema import create_session_factory, \
 from nlabel.io.carenero.common import ExternalKey, text_hash_code
 from nlabel.io.common import ArchiveInfo
 from nlabel.io.carenero.common import json_to_result
-from sqlalchemy.orm import load_only, lazyload
+from nlabel.io.guid import text_guid, tagger_guid
 
+from sqlalchemy.orm import load_only, lazyload
 from falcon_auth2 import AuthMiddleware
 from falcon_auth2.backends import BasicAuthBackend
 
@@ -14,7 +15,6 @@ import falcon
 import click
 import json
 import functools
-import uuid
 import nlabel.version
 
 
@@ -69,7 +69,7 @@ class TaggersResource:
                 signature=tagger_json).first()
             if tagger is None:
                 tagger = Tagger(
-                    guid=str(uuid.uuid4()).upper(),
+                    guid=tagger_guid,
                     signature=tagger_json)
                 session.add(tagger)
                 session.commit()
@@ -146,6 +146,7 @@ class TextsResource:
                         "media", "missing text")
 
                 text = Text(
+                    guid=text_guid(),
                     external_key=external_key.str,
                     external_key_type=external_key.type,
                     text=text_key,

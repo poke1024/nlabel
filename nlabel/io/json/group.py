@@ -1,5 +1,6 @@
 from .loader import Loader, Document
 from ..selector import select_taggers
+from ..guid import text_guid
 from .name import Name
 
 from cached_property import cached_property
@@ -198,11 +199,12 @@ class Group:
         if len(data['taggers']) <= 1:
             return [self]
 
-        base_keys = set(data.keys()) - {'taggers', 'vectors'}
+        base_keys = set(data.keys()) - {'taggers', 'vectors', 'guid'}
         base = dict((k, data[k]) for k in base_keys)
 
         for nlp, vec in zip(data['taggers'], data['vectors']):
             split_data = base.copy()
+            split_data['guid'] = text_guid()
             split_data['taggers'] = [nlp]
             split_data['vectors'] = [vec]
             yield Group(split_data)
@@ -219,7 +221,7 @@ class Group:
         keys = []
         for x in data:
             keys.extend(list(x.keys()))
-        keys = set(keys) - {'taggers', 'vectors', 'stat'}
+        keys = set(keys) - {'taggers', 'vectors', 'stat', 'guid'}
 
         shared_values = {}
         for k in keys:
@@ -237,6 +239,8 @@ class Group:
         tagger_guids = Counter([x['guid'] for x in combined['taggers']])
         if any(x > 1 for x in tagger_guids.values()):
             raise RuntimeError("cannot join due to duplicate tagger GUIDs")
+
+        combined['guid'] = text_guid()
 
         return Group(combined)
 

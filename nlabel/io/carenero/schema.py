@@ -25,6 +25,7 @@ class Text(Base):
     __tablename__ = 'text'
 
     id = Column(Integer, primary_key=True)
+    guid = Column(String, unique=True, nullable=False)
     external_key = Column(String, unique=True, nullable=False)
     external_key_type = Column(String, nullable=False)
     text = deferred(Column(String, nullable=False))

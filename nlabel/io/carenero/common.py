@@ -1,16 +1,15 @@
-import collections
 import functools
 import json
 import logging
 import traceback
 import hashlib
-import uuid
 
 from cached_property import cached_property
 
 from nlabel.io.json.group import split_data
 from nlabel.nlp.nlp import NLP as CoreNLP, Text as CoreText
 from nlabel.io.carenero.schema import Tagger, Tag, TagInstances, Text, Vector, Vectors, ResultStatus, Result
+from ..guid import tagger_guid, text_guid
 
 
 class TaggerFactory:
@@ -33,7 +32,7 @@ class TaggerFactory:
             return instance
         else:
             instance = Tagger(
-                guid=str(uuid.uuid4()).upper(),
+                guid=tagger_guid(),
                 signature=signature)
             self._session.add(instance)
             self._session.commit()
@@ -128,6 +127,7 @@ class Adder:
                 return False
         else:
             batch_text = Text(
+                guid=text_guid(),
                 external_key=self._external_key.str,
                 external_key_type=self._external_key.type,
                 text=self._text,
