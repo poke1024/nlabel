@@ -105,7 +105,7 @@ class Archive(AbstractArchive):
             yield collection
 
     def iter(self, *selectors, progress=True):
-        loader = Loader(*selectors)
+        loader = Loader(*selectors, taggers=self.taggers)
         for _, doc in self._collections(progress=progress):
             yield loader(doc)
 

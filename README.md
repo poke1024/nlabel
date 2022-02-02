@@ -130,7 +130,7 @@ provide it, there are specialized constructors (`NLP.spacy`,
 Documents can be saved to disk:
 
 ```python3
-doc.save("demo")
+doc.save("path/to/file")
 ```
 
 By default, this will generate a json-based format that should
@@ -142,11 +142,32 @@ Of course, you can also use nlabel to load its own documents:
 ```python3
 from nlabel import Document
 
-with Document.open("demo") as doc:
+with Document.open("path/to/file") as doc:
     for sent in doc.sentences:
         for token in sent.tokens:
             print(token.text, token.upos, token.vector)
 ```
+
+### Working with Archives
+
+To store data from multiple taggers and texts, nlabel
+offers `Archive`s.
+
+There will be more detailed info on archives later on,
+for now, here is a quick run-through of how to use them.
+
+#### A first example
+
+```
+with open_archive("/path/to/archive", engine="carenero") as archive:
+    doc = nlp1(text1)
+    archive.add(doc)
+```
+
+This would parse `text1` using `nlp1` and add the resulting
+doc to the archive.
+
+#### Multiple Taggers
 
 ### Groups and Views
 
@@ -159,11 +180,11 @@ from nlabel import Group
 group = Group.join([doc1, doc2])
 ```
 
-A group contains multiple taggers for *one* shared text.
-If you need to collect data for multiple texts, use *archives*
-(see below).
+A group contains data from multiple taggers for *one* shared text.
+If you need to collect data for multiple texts: nlabel's concept
+for that is *archives* (see below).
 
-To work with group, it is necessary to select which
+To work with a group, it is necessary to select which
 tags should get mapped to which name, since tags of the same
 name from different taggers would clash otherwise.
 

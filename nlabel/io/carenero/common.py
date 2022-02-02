@@ -94,7 +94,7 @@ class Adder:
         self._external_key = ExternalKey(external_key)
 
     @property
-    def is_duplicate_entry(self):
+    def is_duplicate_text(self):
         return self.x_text is False
 
     @property
@@ -266,7 +266,7 @@ def gen_message(nlp: CoreNLP, text: CoreText):
 
 
 def add_message(session, x_tagger, adder, message):
-    if adder.is_duplicate_entry:
+    if adder.is_duplicate_text:
         return False
 
     f = LocalResultFactory(x_tagger, adder.x_text)

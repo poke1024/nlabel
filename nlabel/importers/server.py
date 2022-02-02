@@ -137,16 +137,17 @@ class TextsResource:
                 return
 
             if text is None:
+                new_text_guid = text_guid()
+
                 if external_key is None:
-                    external_key = ExternalKey.from_value(
-                        text_hash_code(text_key))
+                    external_key = new_text_guid
 
                 if text_key is None:
                     raise falcon.HTTPInvalidParam(
                         "media", "missing text")
 
                 text = Text(
-                    guid=text_guid(),
+                    guid=new_text_guid,
                     external_key=external_key.str,
                     external_key_type=external_key.type,
                     text=text_key,

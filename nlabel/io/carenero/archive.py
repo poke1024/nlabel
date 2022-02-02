@@ -141,12 +141,12 @@ class Archive(AbstractArchive):
         if self._mode not in ('w', 'w+', 'r+'):
             raise RuntimeError(f"mode = {self._mode}, not a write mode")
 
-    def _batch_add(self, nlp: CoreNLP, items: List[CoreText]):
+    def _batch_add(self, nlp: CoreNLP, items: List[CoreText], ignore_duplicates=True):
         x_tagger = self._tagger_factory.from_instance(nlp)
         with self._session.no_autoflush:
             for item in items:
                 adder = Adder(self._session, x_tagger, item)
-                if adder.is_duplicate_entry:
+                if ignore_duplicates and adder.is_duplicate_text:
                     continue
                 message = gen_message(nlp, item)
                 if message is None:
@@ -154,14 +154,14 @@ class Archive(AbstractArchive):
                 add_message(self._session, x_tagger, adder, message)
                 self._session.commit()
 
-    def batch_add(self, nlp: CoreNLP, items: List[CoreText]):
+    def batch_add(self, nlp: CoreNLP, items: List[CoreText], ignore_duplicates=True):
         # * prevents actually computing the nlp when doc is already in archive
         # * records errors during nlp processing into archive
 
         self._assert_write_mode()
-        self._batch_add(nlp, items)
+        self._batch_add(nlp, items, ignore_duplicates=ignore_duplicates)
 
-    def add(self, item: Union[Group, Document]):
+    def add(self, item: Union[Group, Document], ignore_duplicates=True):
         self._assert_write_mode()
 
         if isinstance(item, Document):
@@ -176,7 +176,7 @@ class Archive(AbstractArchive):
                 x_tagger = self._tagger_factory.from_data(
                     split_doc.nlps[0]['tagger'])
                 adder = Adder(self._session, x_tagger, split_doc)
-                if adder.is_duplicate_entry:
+                if ignore_duplicates and adder.is_duplicate_text:
                     continue
                 any_new = True
                 self._session.add(adder.make_result(split_doc))
@@ -258,7 +258,7 @@ class Archive(AbstractArchive):
         return JsonTaggerList(taggers)
 
     def iter(self, *selectors, progress=True):
-        loader = Loader(*selectors)
+        loader = Loader(*selectors, taggers=self.taggers)
 
         for _, collection in self._collections(progress=progress):
             yield loader(collection)

@@ -9,7 +9,7 @@ from cached_property import cached_property
 
 from ..common import binary_searcher
 from ..form import inflected_tag_forms
-from ..selector import make_selector
+from ..selector import make_selector, auto_selectors
 from nlabel.io.json.group import TaggerPrivate as JsonTagger, TaggerList as JsonTaggerList
 from nlabel.io.arriba.document import Code, DocData, Document
 from nlabel.io.arriba.label import factories as label_factories
@@ -115,6 +115,8 @@ class Archive:
             JsonTagger.from_meta(x) for x in self._taggers])
 
     def iter(self, *selectors, inherit_labels=True, progress=True):
+        selectors = auto_selectors(selectors, self.taggers)
+
         it = Iterator(
             *selectors,
             inherit_labels=inherit_labels,

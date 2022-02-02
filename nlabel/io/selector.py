@@ -276,6 +276,16 @@ class SelectorV2:
         return tag_forms
 
 
+def auto_selectors(selectors, taggers):
+    if not selectors:
+        if len(taggers) == 1:
+            selectors = [taggers[0]]
+        else:
+            raise RuntimeError(
+                "there are multiple taggers, please select one")
+    return selectors
+
+
 def make_selector(label_factories, selectors):
     from nlabel.io.json.group import Tagger, Tag
 
