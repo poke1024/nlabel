@@ -11,6 +11,7 @@ from sqlalchemy.orm import relationship, deferred
 from sqlalchemy.sql import func
 
 from pathlib import Path
+from cached_property import cached_property
 
 
 Base = declarative_base()
@@ -49,6 +50,10 @@ class Tagger(Base):
     signature = deferred(Column(String, unique=True))
     results = relationship("Result", lazy="dynamic")
     tags = relationship("Tag", lazy="dynamic")
+
+    @cached_property
+    def signature_as_dict(self):
+        return orjson.loads(self.signature)
 
 
 class Tag(Base):

@@ -45,7 +45,7 @@ def _result_to_doc(result, vectors=True, migrate=None):
     assert 'taggers' not in json_data
     json_data['taggers'] = [{
         'guid': result.tagger.guid,
-        'tagger': orjson.loads(result.tagger.signature),
+        'tagger': result.tagger.signature_as_dict,
         'tags': json_data['tags']
     }]
     del json_data['tags']
