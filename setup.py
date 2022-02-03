@@ -6,7 +6,7 @@ with open('requirements.txt', 'r') as f:
 setup(
     name='nlabel',
     version='0.0.1.dev0',
-    packages=find_packages('nlabel', 'nlabel.*'),
+    packages=find_packages(),
     description='nlabel tagging and embeddings library',
     url='https://github.com/poke1024/nlabel',
     license=open('LICENSE', 'r').read(),
