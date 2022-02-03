@@ -255,7 +255,7 @@ spacy_tagger = archive.taggers[{
 }]
 ```
 
-### Mixing Taggers
+### Mixing and Bridging Taggers
 
 What happens if we want not exactly one tagger, but the output from multiple
 taggers.
@@ -281,6 +281,65 @@ name clash with spacy's `xpos' tag:
 
 Note that this only works, if stanza's tokenization for a token exactly
 matches that of spacy.
+
+### The Design of nlabel and Inherent Quirks
+
+nlabel does not differentiate between tags and structuring entities
+such as sentences and tokens. All of them are the same concept to
+nlabel: labeled spans, that can be containers to other spans.
+
+What can look like a bug at times, is a very conscious design
+decision: nlabel is completely agnostic to tags in terms of knowing
+only a single concept that it applies to *everything*.
+
+Due to this design, there are various formulations in the API that
+are perfectly valid but rather confusing.
+
+Obviously, it is desirable to write code that avoids these valid but
+quirky formulations.
+
+#### Anything is a span with a label
+
+The code below will look for a tag called "pos" that
+is perfectly aligned with the current token. If such a tag exists,
+nlabel considers it to be the "token's pos tag", and will
+return this tag's label.
+
+```
+for token in doc.tokens:
+    print(token.pos)
+```
+
+Here is a quirky twist on the code above:
+
+```
+for token in doc.tokens:
+    print(token.sentence)
+```
+
+This is allowed. The code will do the same thing as above: first it
+looks for a tag called "sentence" that is perfectly aligned with the
+current token. If such a tag exists, its label is returned.
+
+Since the "sentence" tags provided by nlp libraries carry no labels,
+and "sentence" tags are not aligned to "token" tags, this will fail
+at step one or two, and therefore just return an empty label. Still,
+it is valid in terms of nlabel's concepts.
+
+#### Using the "label" attribute
+
+```
+for ent in sentence.ents:
+    print(ent.label)
+```
+
+The following code does exactly the same thing (avoid using it):
+
+```
+for ent in sentence.ents:
+    print(ent.ent)
+```
+
 
 ### Label Types
 
