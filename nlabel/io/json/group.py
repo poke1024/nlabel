@@ -7,7 +7,7 @@ from cached_property import cached_property
 from collections import Counter
 
 import itertools
-import json
+import orjson
 import contextlib
 import yaml
 
@@ -21,7 +21,7 @@ def split_data(data):
 def _distinct(values):
     if len(set(map(id, values))) == 1:
         return values[:1]
-    return set(map(json.dumps, values))
+    return set(map(orjson.dumps, values))
 
 
 class Tag:

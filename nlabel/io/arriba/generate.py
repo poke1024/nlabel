@@ -7,7 +7,6 @@ import dbm
 import itertools
 import hashlib
 import orjson
-import json
 import h5py
 import struct
 import sqlalchemy
@@ -20,8 +19,6 @@ from nlabel.io.common import AbstractWriter
 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String
-
-from pathlib import Path
 
 
 archive_proto = load_schema()
@@ -489,15 +486,17 @@ class ArribaWriter(AbstractWriter):
                     for i, (external_key, doc) in enumerate(groups):
                         archive.add_doc(
                             doc,
-                            external_key=json.dumps(external_key, sort_keys=True))
+                            external_key=orjson.dumps(
+                                external_key,
+                                option=orjson.OPT_SORT_KEYS).decode("utf8"))
                         if i % self.commit_freq == 0:
                             archive.commit()
                     with open(path / "archive.bin", 'wb') as f:
                         archive.save_archive(f)
 
                 archive_guid = make_archive_guid()
-                with open(path / "meta.json", "w") as f:
-                    f.write(json.dumps({
+                with open(path / "meta.json", "wb") as f:
+                    f.write(orjson.dumps({
                         'type': 'archive',
                         'engine': 'arriba',
                         'version': 1,

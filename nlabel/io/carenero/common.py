@@ -1,8 +1,8 @@
 import functools
-import json
 import logging
 import traceback
 import hashlib
+import orjson
 
 from cached_property import cached_property
 
@@ -22,7 +22,7 @@ class TaggerFactory:
 
     def from_data(self, data):
         return self._from_data_cached(
-            json.dumps(data, sort_keys=True))
+            orjson.dumps(data, option=orjson.OPT_SORT_KEYS).decode("utf8"))
 
     @functools.lru_cache(maxsize=8)
     def _from_data_cached(self, signature):
@@ -66,7 +66,9 @@ class ExternalKey:
         if self._type == 'str':
             return self._value
         else:
-            return json.dumps(self._value, sort_keys=True)
+            return orjson.dumps(
+                self._value,
+                option=orjson.OPT_SORT_KEYS).decode("utf8")
 
     @property
     def type(self):
@@ -103,7 +105,9 @@ class Adder:
 
     @cached_property
     def meta_flat(self):
-        return json.dumps(self._meta, sort_keys=True) if self._meta else ''
+        return orjson.dumps(
+            self._meta,
+            option=orjson.OPT_SORT_KEYS).decode("utf8") if self._meta else ''
 
     @cached_property
     def x_text(self):
@@ -145,7 +149,7 @@ class ResultFactory:
     def _make_succeeded(self, json_data, vectors_data):
         raise NotImplementedError()
 
-    def _check_tagger(self, tagger):
+    def _check_signature(self, signature):
         raise NotImplementedError()
 
     def make_succeeded(self, doc):
@@ -164,7 +168,7 @@ class ResultFactory:
 
         assert 'tags' not in json_data
         json_data['tags'] = json_data['taggers'][0]['tags']
-        self._check_tagger(json_data['taggers'][0]['tagger'])
+        self._check_signature(json_data['taggers'][0]['tagger'])
         del json_data['taggers']
 
         return self._make_succeeded(json_data, vectors_data)
@@ -189,7 +193,9 @@ def json_to_result(tagger, text, status, json_data):
         assert isinstance(tags, dict)
 
         x_tag_i = [
-            TagInstances(tag=_find_or_create_tag(tagger, k), data=json.dumps(v))
+            TagInstances(
+                tag=_find_or_create_tag(tagger, k),
+                data=orjson.dumps(v).decode("utf8"))
             for k, v in tags.items()]
 
         core_json_data = dict((k, v) for k, v in json_data.items() if k != 'tags')
@@ -201,7 +207,7 @@ def json_to_result(tagger, text, status, json_data):
         tagger=tagger,
         text=text,
         status=status,
-        data=json.dumps(core_json_data),
+        data=orjson.dumps(core_json_data).decode("utf8"),
         tag_instances=x_tag_i)
 
 
@@ -209,10 +215,11 @@ class LocalResultFactory(ResultFactory):
     def __init__(self, x_tagger, x_text):
         self._x_tagger = x_tagger
         self._x_text = x_text
+        self._signature = x_tagger.signature.encode("utf8")
 
-    def _check_tagger(self, tagger):
-        assert self._x_tagger.signature == json.dumps(
-            tagger, sort_keys=True)
+    def _check_signature(self, signature):
+        assert self._signature == orjson.dumps(
+            signature, option=orjson.OPT_SORT_KEYS)
 
     def _make_succeeded(self, json_data, vectors_data):
         result = json_to_result(
@@ -254,9 +261,9 @@ def gen_message(nlp: CoreNLP, text: CoreText):
         message = dict(
             text=text,
             doc=None,
-            err=json.dumps({
+            err=orjson.dumps({
                 'traceback': traceback.format_exc()
-            }))
+            }).decode("utf8"))
 
     if message is None:
         message = dict(

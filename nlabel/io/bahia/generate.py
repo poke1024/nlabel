@@ -1,6 +1,6 @@
 import collections
 import h5py
-import json
+import orjson
 import zipfile
 
 from nlabel.io.json.group import split_data
@@ -58,8 +58,8 @@ class BahiaWriter(AbstractWriter):
         any_vectors = False
 
         archive_guid = make_archive_guid()
-        with open(path / "meta.json", "w") as f:
-            f.write(json.dumps({
+        with open(path / "meta.json", "wb") as f:
+            f.write(orjson.dumps({
                 'type': 'archive',
                 'engine': 'bahia',
                 'version': 1,
@@ -84,7 +84,9 @@ class BahiaWriter(AbstractWriter):
 
                     for i, (key, doc) in enumerate(groups):
                         if self.export_keys:
-                            external_keys[json.dumps(key, sort_keys=True)].append(i)
+                            external_keys[orjson.dumps(
+                                key,
+                                option=orjson.OPT_SORT_KEYS).decode("utf8")].append(i)
 
                         json_data, vectors_data = split_data(doc.data)
 
@@ -98,10 +100,10 @@ class BahiaWriter(AbstractWriter):
                                         nlp_group.create_dataset(
                                             k, data=v, **compression['h5'])
 
-                        zf.writestr(f"{i}.json", json.dumps(json_data))
+                        zf.writestr(f"{i}.json", orjson.dumps(json_data))
 
                     if self.export_keys:
-                        zf.writestr(f"keys.json", json.dumps(external_keys))
+                        zf.writestr(f"keys.json", orjson.dumps(external_keys))
 
         finally:
             if not any_vectors:

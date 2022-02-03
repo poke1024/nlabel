@@ -99,15 +99,15 @@ class Exporter:
                     err_data = {
                         'text': result.text.text,
                         'taggers': [{
-                            'tagger': json.loads(result.tagger.signature),
-                            'error': json.loads(result.data)
+                            'tagger': orjson.loads(result.tagger.signature),
+                            'error': orjson.loads(result.data)
                         }]
                     }
                     docs.append(Group(err_data))
                     has_err = True
                 else:
                     raise RuntimeError(
-                        f"encountered failed result on '{text.external_key}': {json.loads(result.data)}")
+                        f"encountered failed result on '{text.external_key}': {orjson.loads(result.data)}")
 
         if self._errors_only and not has_err:
             return None
@@ -281,10 +281,11 @@ class Archive(AbstractArchive):
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             executor.submit(save, list(self.taggers))
 
-            for k, group in self._groups(progress=progress, **options):
-                group_q.put((k, group))
-
-            group_q.put("STOP")
+            try:
+                for k, group in self._groups(progress=progress, **options):
+                    group_q.put((k, group))
+            finally:
+                group_q.put("STOP")
 
 
 @contextlib.contextmanager

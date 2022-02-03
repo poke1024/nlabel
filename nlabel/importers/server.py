@@ -69,7 +69,7 @@ class TaggersResource:
                 signature=tagger_json).first()
             if tagger is None:
                 tagger = Tagger(
-                    guid=tagger_guid,
+                    guid=tagger_guid(),
                     signature=tagger_json)
                 session.add(tagger)
                 session.commit()

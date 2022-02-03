@@ -1,7 +1,7 @@
 import contextlib
 import numpy as np
 import shutil
-import json
+import orjson
 
 from numpy import searchsorted
 from pathlib import Path
@@ -136,7 +136,7 @@ class ArchiveInfo:
             if not base_path.exists():
                 raise FileNotFoundError(base_path)
             with open(base_path / 'meta.json', 'r') as f:
-                meta = json.loads(f.read())
+                meta = orjson.loads(f.read())
             if meta['type'] != 'archive':
                 raise RuntimeError(
                     f"expected archive, got {meta['type']}")
@@ -153,7 +153,7 @@ class ArchiveInfo:
                         f"ignoring w+ on existing archive file at {base_path}")
 
                 with open(base_path / 'meta.json', 'r') as f:
-                    meta = json.loads(f.read())
+                    meta = orjson.loads(f.read())
 
                 if engine is None:
                     engine = meta['engine']
@@ -184,8 +184,8 @@ class ArchiveInfo:
                     'taggers': []
                 }
 
-                with open(base_path / 'meta.json', 'w') as f:
-                    f.write(json.dumps(meta))
+                with open(base_path / 'meta.json', 'wb') as f:
+                    f.write(orjson.dumps(meta))
         else:
             raise ValueError(mode)
 

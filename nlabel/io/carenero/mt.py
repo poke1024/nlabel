@@ -2,7 +2,7 @@ import contextlib
 import concurrent.futures
 import requests
 import traceback
-import json
+import orjson
 import logging
 import queue as queues
 
@@ -19,12 +19,12 @@ from nlabel.io.json.group import Group
 
 class RemoteResultFactory(ResultFactory):
     def __init__(self, nlp):
-        self._tagger_signature = json.dumps(
-            nlp.signature, sort_keys=True)
+        self._tagger_signature = orjson.dumps(
+            nlp.signature, option=orjson.OPT_SORT_KEYS)
 
-    def _check_tagger(self, tagger):
-        assert self._tagger_signature == json.dumps(
-            tagger, sort_keys=True)
+    def _check_signature(self, signature):
+        assert self._tagger_signature == orjson.dumps(
+            signature, option=orjson.OPT_SORT_KEYS)
 
     def _make_succeeded(self, json_data, vectors_data):
         result = {
