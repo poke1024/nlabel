@@ -1,4 +1,3 @@
-import json
 import traceback
 
 import orjson
@@ -10,21 +9,23 @@ import queue
 
 from tqdm import tqdm
 from typing import List, Union
+from sqlalchemy.orm import load_only
 
 from nlabel.io.common import make_writer
+from nlabel.io.selector import auto_selectors, Profile as SelectorProfile
 from nlabel.io.json.loader import Loader
 from nlabel.io.json.group import Group, Tagger as JsonTagger, TaggerList as JsonTaggerList
 from nlabel.io.json.archive import Archive as AbstractArchive
 from nlabel.nlp.core import Text as CoreText
 from nlabel.nlp.nlp import NLP as CoreNLP
 from nlabel.io.carenero.schema import create_session_factory, \
-    Text, ResultStatus, Result, Tagger
+    Text, ResultStatus, Result, Tagger, Tag, TagInstances
 from nlabel.io.carenero.common import TaggerFactory, Adder, \
     gen_message, add_message
 from nlabel.io.json import Document
 
 
-def _result_to_doc(result, vectors=True, migrate=None):
+def _result_to_doc(result, tag_ids=None, vectors=True, migrate=None):
     text = result.text
 
     json_data = orjson.loads(result.data)
@@ -41,7 +42,12 @@ def _result_to_doc(result, vectors=True, migrate=None):
         assert not result.tags
     else:
         tags_data = {}
-        for tag_i in result.tag_instances:
+        if tag_ids is None:
+            tag_instances = result.tag_instances
+        else:
+            tag_instances = result.tag_instances.filter(
+                TagInstances.tag_id.in_(tag_ids))
+        for tag_i in tag_instances:
             tags_data[tag_i.tag.name] = orjson.loads(tag_i.data)
         json_data['tags'] = tags_data
 
@@ -74,7 +80,7 @@ class Exporter:
             self, archive, migrate=None, join_nlps=True,
             allow_failed=False, allow_empty=False,
             errors_only=False, export_vectors=True,
-            force_complete=True):
+            force_complete=True, selection_profile=None):
 
         if force_complete:
             if not archive.is_complete():
@@ -86,14 +92,30 @@ class Exporter:
         self._allow_empty = allow_empty
         self._errors_only = errors_only
         self._export_vectors = export_vectors
+        self._selection_profile = selection_profile or {}
+
+    def _filtered_results(self, results):
+        tagger_ids = self._selection_profile.get('tagger_ids')
+        if tagger_ids is not None:
+            return results.filter(
+                Result.tagger_id.in_(
+                    self._selection_profile['tagger_ids']))
+        else:
+            return results
+
+    def _selected_tag_ids(self, tagger_id):
+        return self._selection_profile.get('tag_ids', {}).get(tagger_id)
 
     def export(self, text):
         docs = []
         has_err = False
 
-        for result in text.results:
+        for result in self._filtered_results(text.results):
             if result.status == ResultStatus.succeeded:
-                docs.append(_result_to_doc(result, vectors=self._export_vectors))
+                docs.append(_result_to_doc(
+                    result,
+                    tag_ids=self._selected_tag_ids(result.tagger_id),
+                    vectors=self._export_vectors))
             else:
                 if self._allow_failed:
                     err_data = {
@@ -116,7 +138,7 @@ class Exporter:
             if self._allow_empty:
                 return None
             else:
-                raise RuntimeError(f"no data found for '{text.external_key}'")
+                raise RuntimeError(f"no data found for key '{text.external_key}'")
 
         if self._join_nlps:
             try:
@@ -143,6 +165,49 @@ class Archive(AbstractArchive):
     def _assert_write_mode(self):
         if self._mode not in ('w', 'w+', 'r+'):
             raise RuntimeError(f"mode = {self._mode}, not a write mode")
+
+    def _tagger_guid_to_id(self, taggers):
+        guids = [x.id for x in taggers]
+
+        r = {}
+        for tagger in self._session.query(Tagger).filter(
+                Tagger.guid.in_(guids)).options(load_only('id', 'guid')):
+            r[tagger.guid] = tagger.id
+
+        if len(r) < len(guids):
+            raise RuntimeError(
+                f"taggers {set(guids) - set(r.keys())} not found in db")
+
+        assert len(r) == len(guids)
+        return r, len(r) == self._session.query(Tagger).count()
+
+    def _selection_profile(self, selectors):
+        profile = SelectorProfile(selectors)
+        tagger_guid_to_id, all_taggers = self._tagger_guid_to_id(profile.taggers)
+
+        all_tag_ids = {}
+        for tagger in profile.taggers:
+            tagger_id = tagger_guid_to_id[tagger.id]
+
+            names = set()
+            for tag in profile.tags(tagger):
+                names.add(tag._name.internal)
+
+            tag_ids = []
+            for tag in self._session.query(Tag).filter(
+                Tag.tagger_id == tagger_id,
+                Tag.name.in_(names)).options(load_only('id')):
+                tag_ids.append(tag.id)
+
+            if len(tag_ids) < self._session.query(Tag).filter(
+                Tag.tagger_id == tagger_id).count():
+
+                all_tag_ids[tagger_id] = tag_ids
+
+        return {
+            'tagger_ids': None if all_taggers else set(tagger_guid_to_id.values()),
+            'tag_ids': all_tag_ids
+        }
 
     def _batch_add(self, nlp: CoreNLP, items: List[CoreText], ignore_duplicates=True):
         x_tagger = self._tagger_factory.from_instance(nlp)
@@ -226,19 +291,6 @@ class Archive(AbstractArchive):
             for group in exporter.export(text):
                 yield text.decoded_external_key, group
 
-    def _fast_iter(self, *selectors, vectors=True):
-        loader = Loader(*selectors)
-
-        query = self._session.query(Result).filter(
-            Result.status == ResultStatus.succeeded).yield_per(100)
-
-        for result in query:
-            doc = _result_to_doc(
-                result,
-                vectors=vectors,
-                migrate=self._migrate)
-            yield loader(doc)
-
     @property
     def taggers(self):
         taggers = []
@@ -251,9 +303,14 @@ class Archive(AbstractArchive):
         return JsonTaggerList(taggers)
 
     def iter(self, *selectors, progress=True):
-        loader = Loader(*selectors, taggers=self.taggers)
+        selectors = auto_selectors(selectors, self.taggers)
 
-        for _, group in self._groups(progress=progress):
+        profile = self._selection_profile(selectors)
+        loader = Loader(*selectors)
+
+        for _, group in self._groups(
+                progress=progress,
+                selection_profile=profile):
             yield loader(group)
 
     def save(self, path, engine, options=None, exist_ok=False, progress=True):

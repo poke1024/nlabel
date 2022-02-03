@@ -386,8 +386,8 @@ tags from one of 4 taggers over 2000 documents):
 
 ![access times for different engines](doc/storage_speed.svg)
 
-An analysis that will take minutes in `bahia` usually
-finishes in seconds using `arriba`.
+The `carenero/ALL` benchmarks shows the time when accessing
+all tags from all taggers through `carenero`.
 
 #### More Engine Details
 

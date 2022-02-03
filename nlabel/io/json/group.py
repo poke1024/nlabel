@@ -1,5 +1,5 @@
 from .loader import Loader, Document
-from ..selector import select_taggers
+from ..selector import select_taggers, auto_selectors
 from ..guid import text_guid
 from .name import Name
 
@@ -195,6 +195,7 @@ class Group:
         return r
 
     def view(self, *selectors, **kwargs):
+        selectors = auto_selectors(selectors, self.taggers)
         loader = Loader(*selectors, **kwargs)
         return loader(self)
 

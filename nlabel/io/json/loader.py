@@ -8,7 +8,7 @@ from cached_property import cached_property
 from numpy import searchsorted
 from nlabel.io.bahia.label import factories as label_factories
 from nlabel.io.common import AbstractSpanFactory, TagError
-from nlabel.io.selector import make_selector, auto_selectors
+from nlabel.io.selector import make_selector
 from nlabel.io.form import inflected_tag_forms
 
 
@@ -276,8 +276,7 @@ class ViewBuilder:
 
 
 class Loader:
-    def __init__(self, *selectors, inherit_labels=True, taggers=None):
-        selectors = auto_selectors(selectors, taggers)
+    def __init__(self, *selectors, inherit_labels=True):
         self._selector = make_selector(label_factories, selectors)
 
     def __call__(self, group):

@@ -7,6 +7,7 @@ from tqdm.auto import tqdm
 from cached_property import cached_property
 
 from nlabel.io.common import make_writer
+from nlabel.io.selector import auto_selectors
 from nlabel.io.json.archive import Archive as AbstractArchive
 from nlabel.io.json.group import Group, TaggerPrivate as JsonTagger, TaggerList as JsonTaggerList
 from nlabel.io.json.loader import Loader
@@ -105,7 +106,8 @@ class Archive(AbstractArchive):
             yield collection
 
     def iter(self, *selectors, progress=True):
-        loader = Loader(*selectors, taggers=self.taggers)
+        selectors = auto_selectors(selectors, self.taggers)
+        loader = Loader(*selectors)
         for _, doc in self._collections(progress=progress):
             yield loader(doc)
 

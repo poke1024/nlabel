@@ -125,6 +125,34 @@ def auto_selectors(selectors, taggers):
     return selectors
 
 
+class Profile:
+    def __init__(self, selectors):
+        from nlabel.io.json.group import Tagger, Tag
+
+        self._tags = collections.defaultdict(list)
+        taggers = set()
+
+        for x in selectors:
+            if isinstance(x, Tagger):
+                taggers.add(x)
+                self._tags[x].extend(x.tags)
+            elif isinstance(x, Tag):
+                taggers.add(x.tagger)
+                self._tags[x.tagger].append(x)
+            else:
+                raise ValueError(
+                    f"expected Tagger or Tag, got {x}")
+
+        self._taggers = taggers
+
+    @property
+    def taggers(self):
+        return self._taggers
+
+    def tags(self, tagger):
+        return self._tags[tagger]
+
+
 def make_selector(label_factories, selectors):
     from nlabel.io.json.group import Tagger, Tag
 
