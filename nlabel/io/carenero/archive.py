@@ -187,16 +187,6 @@ class Archive(AbstractArchive):
 
         return any_new
 
-    @property
-    def errors(self):
-        return self._session.query(Result).filter(
-            Result.status == ResultStatus.failed).all()
-
-    @property
-    def successes(self):
-        return self._session.query(Result).filter(
-            Result.status == ResultStatus.succeeded).all()
-
     def del_errors(self):
         if self._mode != 'w':
             raise RuntimeError("not in write mode")
