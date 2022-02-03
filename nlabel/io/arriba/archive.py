@@ -15,8 +15,24 @@ from nlabel.io.arriba.document import Code, DocData, Document
 from nlabel.io.arriba.label import factories as label_factories
 from nlabel.io.arriba.schema import load_schema
 
-
 archive_proto = load_schema()
+
+
+@contextlib.contextmanager
+def _capnproto_obj(mvs, obj):
+    # this is a workaround to work with the current version of pycapnp. hopefully,
+    # https://github.com/capnproto/pycapnp/pull/281 will be available in the future.
+
+    if isinstance(obj, contextlib._GeneratorContextManager):
+        try:
+            with obj as x:
+                yield x
+        finally:
+            for mv in mvs:
+                mv.release()
+    else:
+        # will leak memory, since mv is not closed properly.
+        yield obj
 
 
 class Iterator:
@@ -61,9 +77,9 @@ class Iterator:
             try:
                 traversal_limit = len(doc_mem) * self._traversal_limit_multiplier
 
-                with archive_proto.Document.from_bytes(
+                with _capnproto_obj([doc_mem], archive_proto.Document.from_bytes(
                         doc_mem,
-                        traversal_limit_in_words=traversal_limit) as b_doc:
+                        traversal_limit_in_words=traversal_limit)) as b_doc:
 
                     b_tags = b_doc.tags
                     b_codes = binary_searcher([x.code for x in b_tags])
@@ -85,9 +101,6 @@ class Iterator:
                     yield Document(doc_data)
             except:
                 raise RuntimeError(f"error while reading document {doc_i}")
-
-            finally:
-                doc_mem.release()
 
 
 class Archive:
@@ -140,31 +153,23 @@ def open_archive(info, traversal_limit_multiplier=1024):
 
     with open(path / "archive.bin", "rb") as f:
         with mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ) as mm:
-            archive = None
             mv = memoryview(mm)
-            try:
-                header_size = struct.unpack("<Q", mv[0:8])[0]
-                with archive_proto.Archive.from_bytes(
-                        mv[8:8 + header_size],
-                        traversal_limit_in_words=len(mv) * traversal_limit_multiplier) as arch:
 
-                    mv2 = mv[8 + header_size:]
-                    try:
-                        archive_args = [path, info.taggers, arch, mv2, traversal_limit_multiplier]
+            header_size = struct.unpack("<Q", mv[0:8])[0]
+            mv1 = mv[8:8 + header_size]
+            mv2 = mv[8 + header_size:]
 
-                        vectors_path = path / "vectors.h5"
-                        if vectors_path.exists():
-                            with h5py.File(vectors_path, "r") as vf:
-                                if vf.attrs['archive'] != info.guid:
-                                    raise RuntimeError("archive GUID mismatch")
-                                yield Archive(*archive_args, vectors_file=vf)
-                        else:
-                            yield Archive(*archive_args)
+            with _capnproto_obj([mv1, mv2, mv], archive_proto.Archive.from_bytes(
+                    mv1,
+                    traversal_limit_in_words=len(mv) * traversal_limit_multiplier)) as arch:
 
-                    finally:
-                        mv2.release()
+                archive_args = [path, info.taggers, arch, mv2, traversal_limit_multiplier]
 
-            finally:
-                if archive:
-                    archive.close()
-                mv.release()
+                vectors_path = path / "vectors.h5"
+                if vectors_path.exists():
+                    with h5py.File(vectors_path, "r") as vf:
+                        if vf.attrs['archive'] != info.guid:
+                            raise RuntimeError("archive GUID mismatch")
+                        yield Archive(*archive_args, vectors_file=vf)
+                else:
+                    yield Archive(*archive_args)
