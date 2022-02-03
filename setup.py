@@ -14,4 +14,5 @@ setup(
     author_email='poke1024@gmx.de',
     install_requires=required,
     long_description=open('README.md').read(),
+    include_package_data=True,
 )
