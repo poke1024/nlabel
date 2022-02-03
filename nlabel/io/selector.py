@@ -98,7 +98,7 @@ class Selector:
             tags = self._by_guid.get(tagger['guid'], [])
             for tag in tags:
                 tag_data = tagger['tags'].get(tag._name.internal)
-                if tag_data:
+                if tag_data is not None:
                     form = TagForm(
                         tag, tag._name,
                         self._label_factories[tag.label_type])
