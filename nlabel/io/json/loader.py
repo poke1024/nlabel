@@ -116,11 +116,12 @@ class Label:
 
 
 class TagData:
-    def __init__(self, view, producer_index, name, spans):
+    def __init__(self, view, producer_index, name, spans, parents):
         self._view = view
         self._producer_index = producer_index
         self._name = name
         self._spans = spans  # natural order in document file
+        self._parents = parents
         vg = view.group.vectors.get(producer_index)
         self._vectors = vg.get(name.internal) if vg else None
 
@@ -135,6 +136,10 @@ class TagData:
     @property
     def spans(self):
         return self._spans
+
+    @property
+    def parents(self):
+        return self._parents
 
     @cached_property
     def sorted_spans(self):
@@ -166,6 +171,14 @@ class Tag:
     @property
     def text(self):
         return self._span.text
+
+    @property
+    def parent(self):
+        i = self._tag_data.parents[self._index]
+        if i is None:
+            return None
+        else:
+            return Tag(self._tag_data, i)
 
     @property
     def vector(self):
@@ -256,6 +269,7 @@ class ViewBuilder:
         name = form.name
         span_factory = self._span_factory
         spans = []
+        parents = []
 
         for tag in tags:
             start = tag.get('start')
@@ -268,11 +282,12 @@ class ViewBuilder:
                     name.external,
                     tag.get('labels'))
                 spans.append(span)
+                parents.append(tag.get('parent'))
             else:
                 pass  # a sub tag from stanza, FIXME
 
         self._tag_spans[name.external] = TagData(
-            self._view, producer_index, name, spans)
+            self._view, producer_index, name, spans, parents)
 
     def make_view(self, tag_forms):
         spans = self._span_factory.sorted_spans

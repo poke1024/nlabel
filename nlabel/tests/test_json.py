@@ -10,9 +10,19 @@ class TestDocument(TestCase):
 		test_nlp = nlabel.NLP(ref_nlp)
 
 		for text in self.texts:
-			self._check_output(ref_nlp, test_nlp, text, [
-				'pos', 'tag', 'dep'  #, 'vector'
-			])
+			self._check_output(ref_nlp, test_nlp, text)
+
+	def test_start_end(self):
+		ref_nlp = spacy.load("en_core_web_sm")
+		test_nlp = nlabel.NLP(ref_nlp)
+
+		for text in self.texts:
+			doc = test_nlp(text)
+			for i, sentence in enumerate(doc.sentences):
+				for j, token in enumerate(sentence.tokens):
+					self.assertEqual(token.text, doc.text[token.start:token.end])
+				for j, ent in enumerate(sentence.ents):
+					self.assertEqual(ent.text, doc.text[ent.start:ent.end])
 
 	def test_spacy_vectors(self):
 		if False:
