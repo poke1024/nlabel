@@ -223,6 +223,10 @@ class DocData:
         self.b_doc = None
         self.taggers = None
 
+    @property
+    def external_key(self):
+        raise NotImplementedError()
+
     def decode_utf8(self, data):
         return DocData._utf8_decoder(data)[0]
 
@@ -330,16 +334,26 @@ class Span:
     def label(self):
         return self._code.label_for_span(self._b_span_id)
 
+    def iter(self, attr):
+        form = self._doc_data.tag_form(attr)
+        if form.is_plural:  # e.g. "tokens"
+            raise ValueError(
+                f"use '{form.singularize().name}' instead of '{attr}'")
+        return self._iter(form)
+
+    def _iter(self, form):
+        if self._b_span is None:
+            return []
+        else:
+            return self._doc_data.iter(
+                form.name.external, self._b_span)
+
     def __getattr__(self, attr):
         tagger = self._doc_data.taggers.get(attr)
         if tagger is None:
             form = self._doc_data.tag_form(attr)
             if form.is_plural:  # e.g. "tokens"
-                if self._b_span is None:
-                    return []
-                else:
-                    return self._doc_data.iter(
-                        form.singularize().name.external, self._b_span)
+                return self._iter(form.singularize())
             else:
                 return form.empty_label
         else:
@@ -351,23 +365,23 @@ class Document:
         self._b_doc = doc_data.b_doc
         self._doc_data = doc_data
 
-    def close(self):
+    def _close(self):
         self._b_doc = None
 
     @property
-    def __tags__(self):
-        return sorted(self._doc_data.taggers.keys())
+    def _external_key(self):
+        return self._doc_data.external_key
 
     @property
-    def b_doc(self):
-        return self._b_doc
+    def _tags(self):
+        return sorted(self._doc_data.taggers.keys())
 
     @property
     def text(self):
         return self._doc_data.text
 
     @cached_property
-    def meta(self):
+    def _meta(self):
         return orjson.loads(self._b_doc.meta)
 
     def __getattr__(self, attr):

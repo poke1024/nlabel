@@ -56,8 +56,8 @@ for sent in doc.sentences:
         print(token.text, token.upos, token.vector)
 ```
 
-You can ask a `doc` which tags it carries, by calling `doc.tags`. In the example above, this
-would give:
+You can ask a `doc` which tags it carries, by calling `nlabel.tags(doc)`.
+In the example above, this would give:
 
 ```python3
 ['dep', 'ent_iob', 'lemma', 'morph', 'sentence', 'token', 'upos', 'xpos']

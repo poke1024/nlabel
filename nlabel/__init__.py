@@ -6,5 +6,6 @@ import nlabel.embeddings
 from nlabel.nlp import NLP, Text
 from nlabel.io.common import to_path, open_archive, RemoteArchive
 from nlabel.io.slice import Slice
+from nlabel.io.json.property import tags, meta
 from nlabel.io.json.loader import Document
 from nlabel.io.json.group import Group

@@ -233,7 +233,7 @@ class Archive(AbstractArchive):
         self._assert_write_mode()
 
         if isinstance(item, Document):
-            doc = item.collection
+            doc = item.group
         else:
             doc = item
 

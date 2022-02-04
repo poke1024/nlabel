@@ -13,10 +13,9 @@ from nlabel.io.form import inflected_tag_forms
 
 
 class Document:
-    def __init__(self, collection):
-        self._collection = collection
-        self._text = collection.text
-        self._meta = collection.meta
+    def __init__(self, group):
+        self._group = group
+        self._text = group.text
         self._spans = None
         self._tag_spans = None
         self._tag_forms = None
@@ -24,16 +23,16 @@ class Document:
     @staticmethod
     @contextlib.contextmanager
     def open(path, *selectors, vectors=True):
-        from.group import Group
+        from .group import Group
 
-        with Group.open(path, vectors=vectors) as collection:
-            yield collection.view(*selectors)
+        with Group.open(path, vectors=vectors) as group:
+            yield group.view(*selectors)
 
     def save(self, path, exist_ok=False):
-        self._collection.save(path, exist_ok=exist_ok)
+        self._group.save(path, exist_ok=exist_ok)
 
     @cached_property
-    def tags(self):
+    def _tags(self):
         tags = []
         for x in self._tag_forms.values():
             if not x.is_plural:
@@ -41,16 +40,20 @@ class Document:
         return sorted(tags, key=lambda x: x.name)
 
     @property
-    def collection(self):
-        return self._collection
+    def group(self):
+        return self._group
+
+    @property
+    def _external_key(self):
+        return self._group.external_key
 
     @property
     def text(self):
         return self._text
 
     @property
-    def meta(self):
-        return self._collection.meta
+    def _meta(self):
+        return self._group.meta
 
     def _late_init(self, spans, tag_spans, tag_forms):
         self._spans = spans
@@ -73,12 +76,14 @@ class Document:
         if form.is_plural:
             raise ValueError(
                 f"use '{form.singularize().name}' instead of '{tag}'")
+        return self._iter(form, container)
 
+    def _iter(self, form, container=None):
+        tag = form.name.external
         tag_data = self._tag_spans.get(tag)
         if tag_data is None:
             return form.empty_label
-
-        if container:
+        elif container:
             start = container.start
             end = container.end
 
@@ -96,7 +101,7 @@ class Document:
     def __getattr__(self, attr):
         form = self._tag_form(attr)
         if form.is_plural:
-            return self.iter(form.singularize().name.external)
+            return self._iter(form.singularize())
         else:
             return form.empty_label
 
@@ -116,7 +121,7 @@ class TagData:
         self._producer_index = producer_index
         self._name = name
         self._spans = spans  # natural order in document file
-        vg = view.collection.vectors.get(producer_index)
+        vg = view.group.vectors.get(producer_index)
         self._vectors = vg.get(name.internal) if vg else None
 
     @property
@@ -167,6 +172,9 @@ class Tag:
         vectors = self._tag_data.vectors
         return vectors[self._index] if vectors is not None else None
 
+    def iter(self, tag):
+        return self._span.iter(tag)
+
     def __getattr__(self, attr):
         return self._span.get_attr(attr)
 
@@ -201,7 +209,7 @@ class Span:
     def add_labels(self, tagger_index, tag, labels):
         if not labels:
             return
-        nlp = self._view.collection.taggers[tagger_index]
+        nlp = self._view.group.taggers[tagger_index]
         old = self._tags.get(tag)
         new_labels = [Label(**x, nlp=nlp) for x in labels]
         if old is None:
@@ -212,6 +220,9 @@ class Span:
     @property
     def text(self):
         return self._view.text[self._start:self._end]
+
+    def iter(self, tag):
+        return self._view.iter(tag, self)
 
     def get_attr(self, attr):
         form = self._view._tag_form(attr)
