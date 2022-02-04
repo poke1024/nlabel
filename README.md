@@ -56,8 +56,8 @@ for sent in doc.sentences:
         print(token.text, token.upos, token.vector)
 ```
 
-You can ask a `doc` which tags it carries, by calling `doc.tags`. In the example above, this
-would give:
+You can ask a `doc` which tags it carries, by calling `nlabel.tags(doc)`.
+In the example above, this would give:
 
 ```python3
 ['dep', 'ent_iob', 'lemma', 'morph', 'sentence', 'token', 'upos', 'xpos']
@@ -113,8 +113,8 @@ Since we renamed `tag` and `pos`, in the spacy example above,
 this would work without additional work.
 
 At the moment nlabel has implementations for spacy, stanza,
-flair and deeppavlov. You can also write your own nlp data
-generators (based on `nlabel.nlp.Tagger`).
+and flair. You can also write your own nlp data  generators
+(based on `nlabel.nlp.Tagger`).
 
 While `NLP` usually auto-detects the type of NLP parser you
 provide it, there are specialized constructors (`NLP.spacy`,
@@ -345,12 +345,13 @@ for ent in sentence.ents:
 
 There are four label types in nlabel:
 
-|          | description                 | notes                            |
-|----------|-----------------------------|----------------------------------|
-| `labels` | all labels                  | constisting of value and score   |
-| `label`  | first label only            | ignores ensuing labels           |
-| `strs`   | string list of label values | ignores scores                   |
-| `str`    | first label value as string | ignores score and ensuing labels |
+|          | description                    | notes                 | type        |
+|----------|--------------------------------|-----------------------|-------------|
+| `str`    | label values as one string (*) | ignores scores        | str         |
+| `strs`   | string list of label values    | ignores scores        | List[str]   |  
+| `labels` | all labels                     | label = value + score | List[Label] | 
+
+(*) multiple values are separated by "|"
 
 `strs` and `labels` are suitable for getting output from taggers that return
 multiple labels. 

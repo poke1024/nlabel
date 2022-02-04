@@ -1,3 +1,4 @@
+from nlabel.io.common import text_hash_code
 from .loader import Loader, Document
 from ..selector import select_taggers, auto_selectors
 from ..guid import text_guid
@@ -172,9 +173,19 @@ class Group:
     def text(self):
         return self._data['text']
 
+    @cached_property
+    def text_hash_code(self):
+        return text_hash_code(self.text)
+
     @property
     def meta(self):
         return self._data.get('meta')
+
+    @cached_property
+    def meta_json(self):
+        return orjson.dumps(
+            self.meta,
+            option=orjson.OPT_SORT_KEYS).decode("utf8") if self.meta else ''
 
     @property
     def external_key(self):
@@ -202,17 +213,17 @@ class Group:
     def split(self):
         data = self._data
         if len(data['taggers']) <= 1:
-            return [self]
+            yield self
+        else:
+            base_keys = set(data.keys()) - {'taggers', 'vectors', 'guid'}
+            base = dict((k, data[k]) for k in base_keys)
 
-        base_keys = set(data.keys()) - {'taggers', 'vectors', 'guid'}
-        base = dict((k, data[k]) for k in base_keys)
-
-        for nlp, vec in zip(data['taggers'], data['vectors']):
-            split_data = base.copy()
-            split_data['guid'] = text_guid()
-            split_data['taggers'] = [nlp]
-            split_data['vectors'] = [vec]
-            yield Group(split_data)
+            for nlp, vec in zip(data['taggers'], data['vectors']):
+                split_data = base.copy()
+                split_data['guid'] = text_guid()
+                split_data['taggers'] = [nlp]
+                split_data['vectors'] = [vec]
+                yield Group(split_data)
 
     @staticmethod
     def join(docs):

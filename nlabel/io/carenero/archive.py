@@ -162,6 +162,10 @@ class Archive(AbstractArchive):
 
         self._new_session = new_session
 
+    @property
+    def engine(self):
+        return "carenero"
+
     def _assert_write_mode(self):
         if self._mode not in ('w', 'w+', 'r+'):
             raise RuntimeError(f"mode = {self._mode}, not a write mode")
@@ -233,7 +237,7 @@ class Archive(AbstractArchive):
         self._assert_write_mode()
 
         if isinstance(item, Document):
-            doc = item.collection
+            doc = item.group
         else:
             doc = item
 
@@ -242,7 +246,7 @@ class Archive(AbstractArchive):
         with self._session.no_autoflush:
             for split_doc in doc.split():
                 x_tagger = self._tagger_factory.from_data(
-                    split_doc.nlps[0]['tagger'])
+                    split_doc.taggers[0].signature)
                 adder = Adder(self._session, x_tagger, split_doc)
                 if ignore_duplicates and adder.is_duplicate_text:
                     continue

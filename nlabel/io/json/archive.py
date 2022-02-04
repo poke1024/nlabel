@@ -1,5 +1,9 @@
 class Archive:
-    def _collections(self, progress=False, **kwargs):
+    @property
+    def engine(self):
+        raise NotImplementedError()
+
+    def _groups(self, progress=False, **kwargs):
         raise NotImplementedError()
 
     def save_to_qda(self, path, *selectors, exist_ok=False, progress=True):
@@ -7,5 +11,5 @@ class Archive:
 
         exporter = QDAExporter(path, *selectors, exist_ok=exist_ok)
         with exporter.writer() as writer:
-            for _, doc in self._collections(progress=progress):
-                writer.add(doc)
+            for _, group in self._groups(progress=progress):
+                writer.add(group)

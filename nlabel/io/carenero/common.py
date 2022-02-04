@@ -75,25 +75,101 @@ class ExternalKey:
         return self._type
 
 
-def text_hash_code(text):
-    return hashlib.blake2b(
-        text.encode("utf8"), digest_size=32).hexdigest()
+def _text_diff(x_text, doc):
+    if x_text.text != doc.text:
+        return 'text'
+    elif x_text.meta != doc.meta_json:
+        return 'meta'
+    else:
+        return None
+
+
+def _check_text_diff(x_text, doc, display_key):
+    diff = _text_diff(x_text, doc)
+    if diff is not None:
+        raise RuntimeError(
+            f"new entry with {display_key}'"
+            f"does not match existing db entry in terms of {diff}")
+
+
+class Entry:
+    @cached_property
+    def guid(self):
+        return text_guid()
+
+    def find(self, session):
+        raise NotImplementedError()
+
+    @property
+    def display_key(self):
+        raise NotImplementedError()
+
+    @property
+    def external_key(self):
+        raise NotImplementedError()
+
+
+class KeyedEntry(Entry):
+    def __init__(self, doc):
+        self._doc = doc
+        self._external_key = ExternalKey(doc.external_key)
+
+    def find(self, session):
+        x_text = session.query(Text).filter(
+            Text.external_key == self._external_key.str,
+            Text.external_key_type == self._external_key.type).first()
+
+        if x_text:
+            _check_text_diff(x_text, self._doc, self.display_key)
+            return x_text
+        else:
+            return None
+
+    @property
+    def display_key(self):
+        return f"external key '{self._external_key.raw}'"
+
+    @property
+    def external_key(self):
+        return self._external_key
+
+
+class UnkeyedEntry(Entry):
+    def __init__(self, doc):
+        self._doc = doc
+
+    def find(self, session):
+        for x_cand in session.query(Text).filter(Text.text_hash_code == self._doc.text_hash_code).yield_per(10):
+            if x_cand.text == self._doc.text:
+                _check_text_diff(x_cand, self._doc, self.display_key)
+                return x_cand
+
+        return None
+
+    @property
+    def display_key(self):
+        return f"text '{self._doc.text[:20]}...'"
+
+    @property
+    def external_key(self):
+        return ExternalKey(self.guid)
+
+
+def make_entry(doc):
+    if doc.external_key is not None:
+        return KeyedEntry(doc)
+    else:
+        return UnkeyedEntry(doc)
 
 
 class Adder:
     def __init__(self, session, x_tagger, doc):
-        text = doc.text
-        external_key = doc.external_key
-        meta = doc.meta
-
-        if external_key is None:
-            raise ValueError("doc needs external_key")
-
         self._session = session
         self._x_tagger = x_tagger
-        self._text = text
-        self._meta = meta
-        self._external_key = ExternalKey(external_key)
+        self._doc = doc
+        self._text = doc.text
+        self._meta = doc.meta
+        self._entry = make_entry(doc)
 
     @property
     def is_duplicate_text(self):
@@ -104,41 +180,25 @@ class Adder:
         return self._x_tagger
 
     @cached_property
-    def meta_flat(self):
-        return orjson.dumps(
-            self._meta,
-            option=orjson.OPT_SORT_KEYS).decode("utf8") if self._meta else ''
-
-    @cached_property
     def x_text(self):
-        batch_text = self._session.query(Text).filter(
-            Text.external_key == self._external_key.str,
-            Text.external_key_type == self._external_key.type).first()
+        x_text = self._entry.find(self._session)
 
-        if batch_text:
-            if batch_text.text != self._text:
-                logging.debug(f"TEXT 1: {batch_text.text}")
-                logging.debug(f"TEXT 2: {self._text}")
-
-                raise RuntimeError(
-                    f"text data for external key '{self._external_key.raw}' does not match")
-            if batch_text.meta != self.meta_flat:
-                raise RuntimeError(
-                    f"meta data for external key '{self._external_key.raw}' does not match")
-
-            if any(r.tagger_id == self._x_tagger.id for r in batch_text.results):
-                logging.debug(f"skipping {self._external_key.raw}")
+        if x_text:
+            if any(r.tagger_id == self._x_tagger.id for r in x_text.results):
+                logging.debug(f"skipping {self._entry.display_key}")
                 return False
         else:
-            batch_text = Text(
-                guid=text_guid(),
-                external_key=self._external_key.str,
-                external_key_type=self._external_key.type,
-                text=self._text,
-                text_hash_code=text_hash_code(self._text),
-                meta=self.meta_flat)
+            external_key = self._entry.external_key
 
-        return batch_text
+            x_text = Text(
+                guid=self._entry.guid,
+                external_key=external_key.str,
+                external_key_type=external_key.type,
+                text=self._text,
+                text_hash_code=self._doc.text_hash_code,
+                meta=self._doc.meta_json)
+
+        return x_text
 
     def make_result(self, doc):
         f = LocalResultFactory(self._x_tagger, self.x_text)

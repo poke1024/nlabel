@@ -40,8 +40,10 @@ class StrLabelFactory(LabelFactory):
     def make_label(self, tagger, labels):
         if not labels:
             return ''
-        else:
+        elif len(labels) == 1:
             return tagger.values[labels[0].value]
+        else:
+            return '|'.join(tagger.values[x.value] for x in labels)
 
     def make_label_from_value(self, tagger, value):
         return tagger.values[value]
@@ -66,27 +68,6 @@ class StrsLabelFactory(LabelFactory):
         return [tagger.values[x] for x in values]
 
 
-class SingleLabelFactory(LabelFactory):
-    @property
-    def empty_label(self):
-        return None
-
-    def make_label(self, tagger, labels):
-        if not labels:
-            return None
-        else:
-            if len(labels) != 1:
-                raise ValueError(
-                    f"cannot reduce {tagger.name} labels {labels} to single label")
-            return Label(tagger, tagger.values[labels[0].value], labels[0].score)
-
-    def make_label_from_value(self, tagger, value):
-        return Label(tagger, tagger.values[value])
-
-    def make_label_from_values(self, tagger, values):
-        return Label(tagger, tagger.values[values[0]])
-
-
 class MultiLabelFactory(LabelFactory):
     @property
     def empty_label(self):
@@ -105,6 +86,5 @@ class MultiLabelFactory(LabelFactory):
 factories = {
     'str': StrLabelFactory(),
     'strs': StrsLabelFactory(),
-    'label': SingleLabelFactory(),
     'labels': MultiLabelFactory()
 }

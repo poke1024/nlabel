@@ -129,15 +129,16 @@ class BuildTagger:
             score=label.get('score'))
 
 
-TempTag = collections.namedtuple('TempTag', ['span', 'labels', 'parent'])
+TempTag = collections.namedtuple('TempTag', ['unsorted_index', 'span', 'labels', 'parent_unsorted'])
 
 
-def make_temp_tag(data, spans_id):
+def make_temp_tag(i, data, spans_id):
     span = data.get('span')
     return TempTag(
-        spans_id[id(span)] if span else -1,
-        data['labels'],
-        data['parent'] or -1)
+        unsorted_index=i,
+        span=spans_id[id(span)] if span else -1,
+        labels=data['labels'],
+        parent_unsorted=data['parent_unsorted'])
 
 
 class RefsFactory:
@@ -191,7 +192,7 @@ def write_labels(target, values, scores, default_score=np.nan):
 
 
 def make_sorted_tags(tags, spans_id):
-    temp_tags = [make_temp_tag(x, spans_id) for x in tags]
+    temp_tags = [make_temp_tag(i, x, spans_id) for i, x in enumerate(tags)]
     return sorted(temp_tags, key=lambda x: x.span)
 
 
@@ -209,7 +210,7 @@ class TempTagger:
         assert self._sorted_tags is None
         data = {
             'labels': labels,
-            'parent': parent
+            'parent_unsorted': parent
         }
         if span is not None:
             data['span'] = span
@@ -259,12 +260,17 @@ class TempTagger:
                 list(itertools.chain(*[[y.value for y in x] for x in labels])),
                 list(itertools.chain(*[[y.score for y in x] for x in labels])))
 
-        parents = [x.parent for x in sorted_tags]
-
-        if all(x < 0 for x in parents):
+        unsorted_parents = [x.parent_unsorted for x in sorted_tags]
+        if all(x is None for x in unsorted_parents):
             r.parents.none = None
         else:
-            r.parents.indices = make_refs(parents)
+            assert np.max(unsorted_parents) < len(sorted_tags)
+
+            reverse_index_map = dict((x.unsorted_index, i) for i, x in enumerate(sorted_tags))
+            reverse_index_map[None] = -1  # parents without index are mapped to -1
+
+            r.parents.indices = make_refs(
+                [reverse_index_map[unsorted_parents[x.unsorted_index]] for x in sorted_tags])
 
         return r
 
