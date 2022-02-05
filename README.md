@@ -345,12 +345,13 @@ for ent in sentence.ents:
 
 There are four label types in nlabel:
 
-|          | description                 | notes                            |
-|----------|-----------------------------|----------------------------------|
-| `labels` | all labels                  | constisting of value and score   |
-| `label`  | first label only            | ignores ensuing labels           |
-| `strs`   | string list of label values | ignores scores                   |
-| `str`    | first label value as string | ignores score and ensuing labels |
+|          | description                    | notes                 | type        |
+|----------|--------------------------------|-----------------------|-------------|
+| `str`    | label values as one string (*) | ignores scores        | str         |
+| `strs`   | string list of label values    | ignores scores        | List[str]   |  
+| `labels` | all labels                     | label = value + score | List[Label] | 
+
+(*) multiple values are separated by "|"
 
 `strs` and `labels` are suitable for getting output from taggers that return
 multiple labels. 

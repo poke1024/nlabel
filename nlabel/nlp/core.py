@@ -70,7 +70,7 @@ class TagBuilder:
 
 
 class Builder:
-    def __init__(self, guid, signature, taggers=None, vectors:dict = None, renames=None):
+    def __init__(self, guid, signature, taggers=None, vectors: dict = None, renames=None):
         renames = renames if renames else {}
         self._taggers_data = dict(
             (renames.get(name, name), []) for name in taggers) if taggers else {}

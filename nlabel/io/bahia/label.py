@@ -16,7 +16,7 @@ class StrLabelFactory(LabelFactory):
         if not labels:
             return ''
         else:
-            return labels[0].value
+            return '|'.join(x.value for x in labels)
 
 
 class StrsLabelFactory(LabelFactory):
@@ -26,18 +26,6 @@ class StrsLabelFactory(LabelFactory):
 
     def make_label(self, labels):
         return [x.value for x in labels]
-
-
-class SingleLabelFactory(LabelFactory):
-    @property
-    def empty_label(self):
-        return None
-
-    def make_label(self, labels):
-        if not labels:
-            return None
-        else:
-            return labels[0]
 
 
 class MultiLabelFactory(LabelFactory):
@@ -52,6 +40,5 @@ class MultiLabelFactory(LabelFactory):
 factories = {
     'str': StrLabelFactory(),
     'strs': StrsLabelFactory(),
-    'label': SingleLabelFactory(),
     'labels': MultiLabelFactory()
 }

@@ -12,9 +12,10 @@ def _spacy_data(doc):
             yield 'lemma', (i, j, token.lemma_)
             yield 'tag', (i, j, token.tag_)
             yield 'pos', (i, j, token.pos_)
-            #yield 'morph', (i, j, token.morph_)
+            yield 'morph', (i, j, (str(token.morph).split("|") if str(token.morph) else []))
             yield 'dep', (i, j, token.dep_)
             yield 'head', (i, j, token.head.text)
+            yield 'vector', (i, j, tuple(token.vector))
 
         for j, ent in enumerate(sentence.ents):
             yield 'ent', (i, j, ent.text)
@@ -56,16 +57,16 @@ class TestCase(unittest.TestCase):
             elif attr == 'ent':
                 for j, ent in enumerate(sentence.ents):
                     yield i, j, ent.text
+            elif attr == 'vector':
+                for j, token in enumerate(sentence.tokens):
+                    yield i, j, tuple(token.vector)
             else:
                 for j, token in enumerate(sentence.tokens):
                     yield i, j, getattr(token, attr)
 
         return data
 
-    def _check_output(self, ref_nlp, test_nlp, text):
-        ref_doc = ref_nlp(text)
-        test_doc = test_nlp(text)
-
+    def _check_output(self, ref_doc, test_doc):
         ref_data = gather_by_key(_spacy_data(ref_doc))
 
         for attr, ref_attr_data in ref_data.items():

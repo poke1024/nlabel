@@ -2,6 +2,7 @@ import contextlib
 import numpy as np
 import shutil
 import orjson
+import hashlib
 
 from numpy import searchsorted
 from pathlib import Path
@@ -121,92 +122,98 @@ def make_writer(path, engine, exist_ok=False):
 
 
 class ArchiveInfo:
-    def __init__(self, path, mode=None, engine=None):
+    def __init__(self, path, mode=None, engine=None, exist_ok=False):
         base_path = to_path(path, '.nlabel')
-        auto_mode = False
-
-        if mode is None:
-            auto_mode = True
-            if base_path.exists():
-                mode = 'r+'
-            else:
-                mode = 'w+'
-
-        if mode == 'r':
-            if not base_path.exists():
-                raise FileNotFoundError(base_path)
-            with open(base_path / 'meta.json', 'r') as f:
-                meta = orjson.loads(f.read())
-            if meta['type'] != 'archive':
-                raise RuntimeError(
-                    f"expected archive, got {meta['type']}")
-            if engine is None:
-                engine = meta['engine']
-            elif engine != meta['engine']:
-                raise ValueError(
-                    'specified engine does not match archive')
-            archive_guid = meta['guid']
-        elif mode in ('r+', 'w+'):
-            if base_path.exists():
-                if mode == 'w+':
-                    raise RuntimeError(
-                        f"ignoring w+ on existing archive file at {base_path}")
-
-                with open(base_path / 'meta.json', 'r') as f:
-                    meta = orjson.loads(f.read())
-
-                if engine is None:
-                    engine = meta['engine']
-                elif engine != meta['engine']:
-                    raise ValueError(
-                        'specified engine does not match archive')
-
-                assert meta['type'] == 'archive'
-                assert meta['version'] == 1
-
-                archive_guid = meta['guid']
-            else:
-                if mode == 'r+':
-                    raise FileNotFoundError(base_path)
-
-                if engine is None:
-                    raise ValueError('specify a storage engine')
-
-                base_path.mkdir()
-
-                archive_guid = make_archive_guid()
-
-                meta = {
-                    'type': 'archive',
-                    'engine': engine,
-                    'version': 1,
-                    'guid': archive_guid,
-                    'taggers': []
-                }
-
-                with open(base_path / 'meta.json', 'wb') as f:
-                    f.write(orjson.dumps(meta))
-        else:
-            raise ValueError(mode)
-
-        if engine in ('bahia', 'arriba') and auto_mode and mode == 'r+':
-            mode = 'r'
 
         self.base_path = base_path
         self.mode = mode
+        self.auto_mode = False
         self.engine = engine
-        self.guid = archive_guid
-        self.taggers = meta["taggers"]
+        self.guid = None
+        self.meta = None
+
+        self._detect_mode()
+
+        if self.mode in ('r', 'r+'):
+            if base_path.exists():
+                self._read()
+            else:
+                raise FileNotFoundError(base_path)
+        elif self.mode in ('w', 'w+'):
+            if base_path.exists():
+                if not exist_ok:
+                    raise RuntimeError(
+                        f"archive file at {base_path} exists")
+                else:
+                    shutil.rmtree(base_path)
+
+            self._create()
+        else:
+            raise ValueError(f"unsupported mode {self.mode}")
+
+        if self.engine in ('bahia', 'arriba') and self.auto_mode and self.mode == 'r+':
+            self.mode = 'r'
+
+        self.taggers = self.meta["taggers"]
+
+    def _detect_mode(self):
+        if self.mode is None:
+            self.auto_mode = True
+            if self.base_path.exists():
+                self.mode = 'r+'
+            else:
+                self.mode = 'w+'
+
+    def _read(self):
+        with open(self.base_path / 'meta.json', 'r') as f:
+            meta = orjson.loads(f.read())
+
+        if meta['type'] != 'archive':
+            raise RuntimeError(
+                f"expected archive, got {meta['type']}")
+
+        if meta['version'] != 1:
+            raise RuntimeError(
+                f"expected version 1, got {meta['version']}")
+
+        if self.engine is None:
+            self.engine = meta['engine']
+        elif self.engine != meta['engine']:
+            raise ValueError(
+                'specified engine does not match archive')
+
+        self.meta = meta
+        self.archive_guid = meta['guid']
+
+    def _create(self):
+        if self.engine is None:
+            raise ValueError('specify a storage engine')
+
+        self.base_path.mkdir()
+
+        self.archive_guid = make_archive_guid()
+
+        meta = {
+            'type': 'archive',
+            'engine': self.engine,
+            'version': 1,
+            'guid': self.archive_guid,
+            'taggers': []
+        }
+
+        with open(self.base_path / 'meta.json', 'wb') as f:
+            f.write(orjson.dumps(meta))
+
         self.meta = meta
 
 
 @contextlib.contextmanager
-def open_archive(path, mode=None, engine=None, **kwargs):
+def open_archive(path, mode=None, engine=None, exist_ok=False, **kwargs):
     from nlabel.io.carenero.archive import open_archive as open_carenero_archive
     from nlabel.io.bahia.archive import open_archive as open_bahia_archive
     from nlabel.io.arriba.archive import open_archive as open_arriba_archive
 
-    info = ArchiveInfo(path, mode=mode, engine=engine)
+    info = ArchiveInfo(path, mode=mode, engine=engine, exist_ok=exist_ok)
 
     if info.engine == 'carenero':
         with open_carenero_archive(info, **kwargs) as x:
@@ -225,3 +232,9 @@ class RemoteArchive:
     def __init__(self, api_url, auth=None):
         self.api_url = api_url
         self.auth = auth
+
+
+def text_hash_code(text):
+    return hashlib.blake2b(
+        text.encode("utf8"), digest_size=32).hexdigest()
+

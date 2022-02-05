@@ -4,7 +4,7 @@ capnp.remove_import_hook()
 import nlabel.embeddings
 
 from nlabel.nlp import NLP, Text
-from nlabel.io.common import to_path, open_archive, RemoteArchive
+from nlabel.io.common import to_path, open_archive as open, RemoteArchive
 from nlabel.io.slice import Slice
 from nlabel.io.json.property import tags, meta
 from nlabel.io.json.loader import Document
