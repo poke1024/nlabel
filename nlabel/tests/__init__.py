@@ -1,6 +1,7 @@
 import unittest
 import collections
 import json
+
 import spacy
 import stanza
 
@@ -75,6 +76,15 @@ class TestCase(unittest.TestCase):
                     'ja': stanza.Pipeline('ja', verbose=False)
                 }
             }
+
+            try:
+                import deeppavlov
+                TestCase.models['deeppavlov'] = {
+                    'en': deeppavlov.build_model(
+                        deeppavlov.configs.ner.ner_ontonotes_bert_torch, download=True)
+                }
+            except:
+                pass
 
     @property
     def texts(self):

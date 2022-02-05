@@ -113,8 +113,8 @@ Since we renamed `tag` and `pos`, in the spacy example above,
 this would work without additional work.
 
 At the moment nlabel has implementations for spacy, stanza,
-flair and deeppavlov. You can also write your own nlp data
-generators (based on `nlabel.nlp.Tagger`).
+and flair. You can also write your own nlp data  generators
+(based on `nlabel.nlp.Tagger`).
 
 While `NLP` usually auto-detects the type of NLP parser you
 provide it, there are specialized constructors (`NLP.spacy`,
