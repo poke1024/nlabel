@@ -22,7 +22,8 @@ class TestDocument(TestCase):
 		import flair.tokenization
 
 		ref_nlp = flair.models.MultiTagger({
-			'ent': flair.models.SequenceTagger.load('ner-fast')})
+			'ent': flair.models.SequenceTagger.load('ner-fast'),
+			'pos': flair.models.SequenceTagger.load('upos-fast')})
 		test_nlp = nlabel.NLP(ref_nlp)
 
 		splitter = flair.tokenization.SegtokSentenceSplitter()
@@ -37,12 +38,16 @@ class TestDocument(TestCase):
 			for i, sentence in enumerate(sentences):
 				ref_nlp.predict(sentence)
 				for j, ent in enumerate(sentence.get_spans('ent')):
-					ref_data[(i, j)] = (ent.text, ent.tag)  # ent.score
+					ref_data[(i, j, 'ent')] = (ent.text, ent.tag)  # ent.score
+				for j, pos in enumerate(sentence.get_spans('pos')):
+					ref_data[(i, j, 'pos')] = (pos.text, pos.tag)
 
 			test_data = {}
 			for i, sentence in enumerate(test_nlp(text).sentences):
 				for j, ent in enumerate(sentence.ents):
-					test_data[(i, j)] = (ent.text, ent.label)
+					test_data[(i, j, 'ent')] = (ent.text, ent.label)
+				for j, token in enumerate(sentence.tokens):
+					test_data[(i, j, 'pos')] = (token.text, token.pos)
 
 			self.assertEqual(ref_data, test_data)
 
