@@ -60,18 +60,21 @@ def _nlabel_data_iter(doc, attr):
 
 
 class TestCase(unittest.TestCase):
+    models = None
+
     @classmethod
     def setUpClass(cls):
-        cls.models = {
-            'spacy': {
-                'en': spacy.load('en_core_web_sm'),
-                'ja': spacy.load('ja_core_news_sm')
-            },
-            'stanza': {
-                'en': stanza.Pipeline('en', verbose=False),
-                'ja': stanza.Pipeline('ja', verbose=False)
+        if TestCase.models is None:
+            TestCase.models = {
+                'spacy': {
+                    'en': spacy.load('en_core_web_sm'),
+                    'ja': spacy.load('ja_core_news_sm')
+                },
+                'stanza': {
+                    'en': stanza.Pipeline('en', verbose=False),
+                    'ja': stanza.Pipeline('ja', verbose=False)
+                }
             }
-        }
 
     @property
     def texts(self):
