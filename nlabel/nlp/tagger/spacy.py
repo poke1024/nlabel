@@ -253,8 +253,10 @@ class SpacyTagger(Tagger):
         builder.add_sent()
         builder.add_token()
 
-        if self._has(spacy.pipeline.Lemmatizer):
-            builder.add_tag('lemma')
+        #if self._has(spacy.pipeline.Lemmatizer):
+        # lemmas are sometimes present, even if there
+        # is no Lemmatizer, see ja_core_news_sm
+        builder.add_tag('lemma')
 
         if self._has(spacy.pipeline.Tagger):
             builder.add_tag('tag')

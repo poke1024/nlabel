@@ -6,8 +6,13 @@ import spacy
 
 class TestDocument(TestCase):
 	def test_spacy(self):
-		ref_nlp = spacy.load("en_core_web_sm")
-		test_nlp = nlabel.NLP(ref_nlp, vectors={'token': nlabel.embeddings.native})
+		for lang, text in self.texts:
+			ref_nlp = self.models['spacy'][lang]
+			test_nlp = nlabel.NLP(ref_nlp, vectors={'token': nlabel.embeddings.native})
+			self._check_output(ref_nlp(text), test_nlp(text), ref_lib='spacy')
 
-		for text in self.texts:
-			self._check_output(ref_nlp(text), test_nlp(text))
+	def test_stanza(self):
+		for lang, text in self.texts:
+			ref_nlp = self.models['stanza'][lang]
+			test_nlp = nlabel.NLP(ref_nlp)
+			self._check_output(ref_nlp(text), test_nlp(text), ref_lib='stanza')

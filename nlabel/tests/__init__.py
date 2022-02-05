@@ -1,26 +1,45 @@
 import unittest
 import collections
 import json
+import spacy
+import stanza
 
 
-def _spacy_data(doc):
-    data = collections.defaultdict(dict)
+class Extractor:
+    def __init__(self, ref_lib):
+        self._ref_lib = ref_lib
 
-    for i, sentence in enumerate(doc.sents):
-        for j, token in enumerate(sentence):
-            yield 'text', (i, j, token.text)
-            yield 'lemma', (i, j, token.lemma_)
-            yield 'tag', (i, j, token.tag_)
-            yield 'pos', (i, j, token.pos_)
-            yield 'morph', (i, j, (str(token.morph).split("|") if str(token.morph) else []))
-            yield 'dep', (i, j, token.dep_)
-            yield 'head', (i, j, token.head.text)
-            yield 'vector', (i, j, tuple(token.vector))
+    def __call__(self, doc):
+        return getattr(self, self._ref_lib)(doc)
 
-        for j, ent in enumerate(sentence.ents):
-            yield 'ent', (i, j, ent.text)
+    def spacy(self, doc):
+        for i, sentence in enumerate(doc.sents):
+            for j, token in enumerate(sentence):
+                yield 'text', (i, j, token.text)
+                yield 'lemma', (i, j, token.lemma_)
+                yield 'tag', (i, j, token.tag_)
+                yield 'pos', (i, j, token.pos_)
+                yield 'morph', (i, j, (str(token.morph).split("|") if str(token.morph) else []))
+                yield 'dep', (i, j, token.dep_)
+                yield 'head', (i, j, token.head.text)
+                yield 'vector', (i, j, tuple(token.vector))
 
-    return data
+            for j, ent in enumerate(sentence.ents):
+                yield 'ent', (i, j, (ent.text, ent.label_))
+
+    def stanza(self, doc):
+        for i, sentence in enumerate(doc.sentences):
+            for j, word in enumerate(sentence.words):
+                yield 'text', (i, j, word.text)
+                yield 'lemma', (i, j, word.lemma)
+                yield 'upos', (i, j, word.upos)
+                yield 'xpos', (i, j, word.xpos)
+                yield 'feats', (i, j, (word.feats.split("|") if word.feats else []))
+                yield 'dep', (i, j, word.deprel)
+                yield 'head', (i, j, (sentence.words[word.head - 1].text if word.head > 0 else word.text))
+
+            for j, ent in enumerate(sentence.ents):
+                yield 'ent', (i, j, (ent.text, ent.type))
 
 
 def gather_by_key(x):
@@ -41,11 +60,25 @@ def _nlabel_data_iter(doc, attr):
 
 
 class TestCase(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.models = {
+            'spacy': {
+                'en': spacy.load('en_core_web_sm'),
+                'ja': spacy.load('ja_core_news_sm')
+            },
+            'stanza': {
+                'en': stanza.Pipeline('en', verbose=False),
+                'ja': stanza.Pipeline('ja', verbose=False)
+            }
+        }
+
     @property
     def texts(self):
         with open("texts.json", "r") as f:
-            for text in json.loads(f.read()):
-                yield text
+            for lang, texts in json.loads(f.read()).items():
+                for text in texts:
+                    yield lang, text
 
     def _nlabel_data(self, doc, attr):
         data = collections.defaultdict(dict)
@@ -56,7 +89,7 @@ class TestCase(unittest.TestCase):
                     yield i, j, dep.parent.text
             elif attr == 'ent':
                 for j, ent in enumerate(sentence.ents):
-                    yield i, j, ent.text
+                    yield i, j, (ent.text, ent.label)
             elif attr == 'vector':
                 for j, token in enumerate(sentence.tokens):
                     yield i, j, tuple(token.vector)
@@ -66,8 +99,9 @@ class TestCase(unittest.TestCase):
 
         return data
 
-    def _check_output(self, ref_doc, test_doc):
-        ref_data = gather_by_key(_spacy_data(ref_doc))
+    def _check_output(self, ref_doc, test_doc, ref_lib):
+        ref_extractor = Extractor(ref_lib)
+        ref_data = gather_by_key(ref_extractor(ref_doc))
 
         for attr, ref_attr_data in ref_data.items():
             with self.subTest(tag=attr):
