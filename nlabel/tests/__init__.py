@@ -78,3 +78,9 @@ class TestCase(unittest.TestCase):
         self.assertEqual(
             tuple(self._nlabel_data(test_doc, 'text')),
             tuple(_nlabel_data_iter(test_doc, 'text')))
+
+        for i, sentence in enumerate(test_doc.sentences):
+            for j, token in enumerate(sentence.tokens):
+                self.assertEqual(token.text, test_doc.text[token.start:token.end])
+            for j, ent in enumerate(sentence.ents):
+                self.assertEqual(ent.text, test_doc.text[ent.start:ent.end])

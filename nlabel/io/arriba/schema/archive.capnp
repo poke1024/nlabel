@@ -3,7 +3,7 @@
 # document level
 
 struct SharedListInt {
-    # for spans: ref into Document.spans, or -1 if no span
+    # for spans: ref into Document.spans (i.e. starts, lens), or -1 if no span
     values :union {
         int8 @0 :List(Int8);
         int16 @1 :List(Int16);

@@ -112,6 +112,10 @@ class Archive:
         self._traversal_limit_multiplier = traversal_limit_multiplier
         self._vectors_file = vectors_file
 
+    @property
+    def engine(self):
+        return "arriba"
+
     def close(self):
         self._mm = None
 

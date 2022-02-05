@@ -162,6 +162,10 @@ class Archive(AbstractArchive):
 
         self._new_session = new_session
 
+    @property
+    def engine(self):
+        return "carenero"
+
     def _assert_write_mode(self):
         if self._mode not in ('w', 'w+', 'r+'):
             raise RuntimeError(f"mode = {self._mode}, not a write mode")

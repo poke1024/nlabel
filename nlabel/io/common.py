@@ -154,6 +154,8 @@ class ArchiveInfo:
         if self.engine in ('bahia', 'arriba') and self.auto_mode and self.mode == 'r+':
             self.mode = 'r'
 
+        assert self.guid is not None
+        assert isinstance(self.meta, dict)
         self.taggers = self.meta["taggers"]
 
     def _detect_mode(self):
@@ -183,7 +185,7 @@ class ArchiveInfo:
                 'specified engine does not match archive')
 
         self.meta = meta
-        self.archive_guid = meta['guid']
+        self.guid = meta['guid']
 
     def _create(self):
         if self.engine is None:
@@ -191,13 +193,13 @@ class ArchiveInfo:
 
         self.base_path.mkdir()
 
-        self.archive_guid = make_archive_guid()
+        self.guid = make_archive_guid()
 
         meta = {
             'type': 'archive',
             'engine': self.engine,
             'version': 1,
-            'guid': self.archive_guid,
+            'guid': self.guid,
             'taggers': []
         }
 

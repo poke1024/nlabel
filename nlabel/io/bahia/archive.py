@@ -41,6 +41,10 @@ class Archive(AbstractArchive):
         self._size = len(zf.filelist)
 
     @property
+    def engine(self):
+        return "bahia"
+
+    @property
     def path(self):
         return self._path
 
@@ -115,10 +119,9 @@ class Archive(AbstractArchive):
 @contextlib.contextmanager
 def open_archive(info):
     path = info.base_path
-    mode = info.mode
 
-    if mode != "r":
-        raise RuntimeError(f"mode {mode} is not supported")
+    if info.mode != "r":
+        raise RuntimeError(f"mode {info.mode} is not supported")
 
     with zipfile.ZipFile(path / "documents.zip", "r") as zf:
         vectors_path = path / "vectors.h5"

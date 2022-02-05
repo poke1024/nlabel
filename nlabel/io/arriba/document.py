@@ -12,6 +12,14 @@ from ..common import TagError, binary_searcher
 TempLabel = collections.namedtuple('TempLabel', ['value', 'score'])
 
 
+def _unpack_parents(b_data):
+    if b_data.parents.which == "none":
+        return None
+    else:
+        values = b_data.parents.indices.values
+        return getattr(values, str(values.which))
+
+
 class Code:
     def __init__(self, code_id, tag_form, b_code, b_data):
         self._code_id = code_id
@@ -26,11 +34,7 @@ class Code:
             self._b_span_ids = getattr(b_span_ids, str(w))
 
         self._b_labels = b_data.labels
-
-        if b_data.parents.which == "none":
-            self._b_parents = None
-        else:
-            self._b_parents = b_data.parents.indices.values
+        self._b_parents = _unpack_parents(b_data)
 
     @property
     def code_id(self):
@@ -122,6 +126,10 @@ class Code:
             return self._tag_form.empty_label
         else:
             return make_label(self, b_labels)
+
+    @property
+    def b_parents(self):
+        return self._b_parents
 
 
 class SpanList:
@@ -243,7 +251,7 @@ class DocData:
         offsets = np.cumsum(np.concatenate([[0], w]))
         return dict((x, i) for i, x in enumerate(offsets))
 
-    def span_index(self, i):
+    def char_index(self, i):
         return self._utf8_to_text_index[i]  # convert utf8 byte index to char index
 
     @functools.lru_cache
@@ -299,7 +307,8 @@ class Span:
         assert b_span_id >= 0
         self._doc_data = doc_data
         self._code = code
-        self._b_span_id = b_span_id
+        self._b_span_id = b_span_id  # the index into Document spans,
+        # i.e. *not* the index into CodeData.spans
 
     @property
     def _b_doc(self):
@@ -313,12 +322,12 @@ class Span:
     @cached_property
     def start(self):
         b_span = self._b_span
-        return self._doc_data.span_index(b_span.start) if b_span else None
+        return self._doc_data.char_index(b_span.start) if b_span else None
 
     @cached_property
     def end(self):
         b_span = self._b_span
-        return self._doc_data.span_index(b_span.end) if b_span else None
+        return self._doc_data.char_index(b_span.end) if b_span else None
 
     @cached_property
     def text(self):
@@ -333,6 +342,19 @@ class Span:
     @property
     def label(self):
         return self._code.label_for_span(self._b_span_id)
+
+    @property
+    def parent(self):
+        code = self._code
+        indices = code.b_parents
+        if indices is None:
+            return None
+        else:
+            i = code.b_span_id_to_index[self._b_span_id]
+            return Span(
+                self._doc_data,
+                code,
+                code.b_span_ids[indices[i]])
 
     def iter(self, attr):
         form = self._doc_data.tag_form(attr)
@@ -384,10 +406,13 @@ class Document:
     def _meta(self):
         return orjson.loads(self._b_doc.meta)
 
+    def iter(self, tag):
+        return self._doc_data.iter(tag)
+
     def __getattr__(self, attr):
         form = self._doc_data.tag_form(attr)
         if form.is_plural:
-            return self._doc_data.iter(
+            return self.iter(
                 form.singularize().name.external)
         else:
             return form.empty_label
