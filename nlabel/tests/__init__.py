@@ -77,15 +77,6 @@ class TestCase(unittest.TestCase):
                 }
             }
 
-            try:
-                import deeppavlov
-                TestCase.models['deeppavlov'] = {
-                    'en': deeppavlov.build_model(
-                        deeppavlov.configs.ner.ner_ontonotes_bert_torch, download=True)
-                }
-            except:
-                pass
-
     @property
     def texts(self):
         with open("texts.json", "r") as f:

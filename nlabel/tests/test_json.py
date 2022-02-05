@@ -17,14 +17,42 @@ class TestDocument(TestCase):
 			test_nlp = nlabel.NLP(ref_nlp)
 			self._check_output(ref_nlp(text), test_nlp(text), ref_lib='stanza')
 
-	def test_deeppavlov(self):
-		models = self.models.get('deeppavlov')
-		if models is None:
-			logging.info(f"skipping deeppavlog.")
-			return
+	def test_flair(self):
+		import flair
+		import flair.tokenization
+
+		ref_nlp = flair.models.MultiTagger({
+			'ent': flair.models.SequenceTagger.load('ner-fast')})
+		test_nlp = nlabel.NLP(ref_nlp)
+
+		splitter = flair.tokenization.SegtokSentenceSplitter()
 		for lang, text in self.texts:
-			ref_nlp = models.get(lang)
-			if ref_nlp is None:
-				logging.info(f"skipping deeppavlog/{lang}.")
-			test_nlp = nlabel.NLP(ref_nlp)
-			self._check_output(ref_nlp(text), test_nlp(text), ref_lib='deeppavlov')
+			if lang != 'en':
+				logging.info(f"skipping flair tests for lang {lang}")
+				continue
+
+			sentences = splitter.split(text)
+
+			ref_data = {}
+			for i, sentence in enumerate(sentences):
+				ref_nlp.predict(sentence)
+				for j, ent in enumerate(sentence.get_spans('ent')):
+					ref_data[(i, j)] = (ent.text, ent.tag)  # ent.score
+
+			test_data = {}
+			for i, sentence in enumerate(test_nlp(text).sentences):
+				for j, ent in enumerate(sentence.ents):
+					test_data[(i, j)] = (ent.text, ent.label)
+
+			self.assertEqual(ref_data, test_data)
+
+	def test_deeppavlov(self):
+		try:
+			import deeppavlov
+			TestCase.models['deeppavlov'] = {
+				'en': deeppavlov.build_model(
+					deeppavlov.configs.ner.ner_ontonotes_bert_torch, download=True)
+			}
+		except:
+			pass
+
