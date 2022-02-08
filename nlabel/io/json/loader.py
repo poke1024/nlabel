@@ -6,7 +6,6 @@ import logging
 
 from cached_property import cached_property
 from numpy import searchsorted
-from nlabel.io.bahia.label import factories as label_factories
 from nlabel.io.common import AbstractSpanFactory, TagError
 from nlabel.io.selector import make_selector
 from nlabel.io.form import inflected_tag_forms
@@ -63,8 +62,7 @@ class Document:
     def _tag_form(self, name):
         form = self._tag_forms.get(name)
         if not form:
-            logging.info(f"available tags: {list(self._tag_forms.keys())}")
-            raise TagError(name)
+            raise TagError(name, list(self._tag_forms.keys()))
         return form
 
     @functools.lru_cache
@@ -82,7 +80,7 @@ class Document:
         tag = form.name.external
         tag_data = self._tag_spans.get(tag)
         if tag_data is None:
-            return form.empty_label
+            return form.make_empty_label('labels')
         elif container:
             start = container.start
             end = container.end
@@ -158,7 +156,13 @@ class Tag:
 
     @property
     def label(self):
-        return self._span.get_attr(self.name)
+        return self._span.get_attr(
+            self.name, kind="label")
+
+    @property
+    def labels(self):
+        return self._span.get_attr(
+            self.name, kind="labels")
 
     @property
     def start(self):
@@ -189,18 +193,18 @@ class Tag:
         return self._span.iter(tag)
 
     def __getattr__(self, attr):
-        return self._span.get_attr(attr)
+        return self._span.get_attr(attr, kind="default")
 
 
 class Span:
-    __slots__ = '_view', '_start', '_end', '_index', '_tags'
+    __slots__ = '_view', '_start', '_end', '_index', '_tags_data'
 
     def __init__(self, view, start, end):
         self._view = view
         self._start = start
         self._end = end
         self._index = None
-        self._tags = {}
+        self._tags_data = {}
 
     @property
     def index(self):
@@ -219,16 +223,15 @@ class Span:
     def end(self):
         return self._end
 
-    def add_labels(self, tagger_index, tag, labels):
-        if not labels:
+    def add_labels(self, tagger_index, tag, data):
+        if not data:
             return
-        nlp = self._view.group.taggers[tagger_index]
-        old = self._tags.get(tag)
-        new_labels = [Label(**x, nlp=nlp) for x in labels]
-        if old is None:
-            self._tags[tag] = new_labels
-        else:
-            old.extend(labels)
+
+        # FIXME. pass this on.
+        #nlp = self._view.group.taggers[tagger_index]
+
+        assert tag not in self._tags_data
+        self._tags_data[tag] = data
 
     @property
     def text(self):
@@ -237,17 +240,17 @@ class Span:
     def iter(self, tag):
         return self._view.iter(tag, self)
 
-    def get_attr(self, attr):
+    def get_attr(self, attr, kind):
         form = self._view._tag_form(attr)
         if form.is_plural:  # e.g. "tokens"
             return self._view.iter(
                 form.singularize().name.external, self)
         else:
-            data = self._tags.get(attr)
+            data = self._tags_data.get(attr)
             if data is None:
-                return form.empty_label
+                return form.make_empty_label(kind)
             else:
-                return form.make_label(data)
+                return form.make_label(data, kind)
 
 
 class SpanFactory(AbstractSpanFactory):
@@ -280,7 +283,7 @@ class ViewBuilder:
                 span.add_labels(
                     producer_index,
                     name.external,
-                    tag.get('labels'))
+                    tag.get('data'))
                 spans.append(span)
                 parents.append(tag.get('parent'))
             else:
@@ -303,7 +306,7 @@ class ViewBuilder:
 
 class Loader:
     def __init__(self, *selectors, inherit_labels=True):
-        self._selector = make_selector(label_factories, selectors)
+        self._selector = make_selector(selectors)
 
     def __call__(self, group):
         builder = ViewBuilder(group)

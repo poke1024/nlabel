@@ -6,6 +6,7 @@ from .name import Name
 
 from cached_property import cached_property
 from collections import Counter
+import collections
 
 import itertools
 import orjson
@@ -25,32 +26,145 @@ def _distinct(values):
     return set(map(orjson.dumps, values))
 
 
+class StrLabelFactory:
+    def make_empty_label(self, kind):
+        if kind in ('label', 'default'):
+            return ''
+        elif kind == 'labels':
+            return []
+        else:
+            raise ValueError(kind)
+
+    def make_label(self, data, kind):
+        if kind in ('label', 'default'):
+            return data
+        elif kind == 'labels':
+            return [data]
+        else:
+            raise ValueError(kind)
+
+
+class VoidLabelFactory:
+    def make_empty_label(self, kind):
+        raise None
+
+    def make_label(self, data, kind):
+        return None
+
+
+class TransformedLabelFactory:
+    def __init__(self, base, tfms):
+        self._base = base
+        self._tfms = tfms
+
+    def make_empty_label(self, kind):
+        label = self._base.make_empty_label(kind)
+        for f in self._tfms:
+            label = f(label)
+        return label
+
+    def make_label(self, data, kind):
+        label = self._base.make_label(data, kind)
+        for f in self._tfms:
+            label = f(label)
+        return label
+
+
+class ListLabelFactory:
+    def __init__(self, elem):
+        self._elem = elem
+
+    def make_empty_label(self, kind):
+        if kind == 'label':
+            raise ValueError(
+                "cannot access list as 'label'")
+        elif kind in ('labels', 'default'):
+            return []
+        else:
+            raise ValueError(kind)
+
+    def make_label(self, data, kind):
+        if kind == 'label':
+            raise ValueError(
+                "cannot access list as 'label'")
+        elif kind in ('labels', 'default'):
+            f = self._elem
+            return [f.make_label(x, 'label') for x in data]
+        else:
+            raise ValueError(kind)
+
+
+class StructureLabelFactory:
+    def __init__(self, members):
+        self._members = members
+        self._type = collections.namedtuple(
+            'Structure', members)
+
+    def make_empty_label(self, kind):
+        if kind == 'label':
+            return None
+        elif kind in ('labels', 'default'):
+            return []
+        else:
+            raise ValueError(kind)
+
+    def make_label(self, data, kind):
+        if kind in ('label', 'default'):
+            return self._type(**data)
+        elif kind == 'labels':
+            return [self._type(**data)]
+        else:
+            raise ValueError(kind)
+
+
+def make_label_factory(grammar):
+    if isinstance(grammar, dict):
+        gt = grammar['type']
+        if gt == 'list':
+            return ListLabelFactory(
+                make_label_factory(grammar['member']))
+        elif gt == 'structure':
+            return StructureLabelFactory(
+                grammar['members'])
+        else:
+            raise ValueError(
+                f'unimplemented label grammar "{grammar}"')
+    elif grammar == 'str':
+        return StrLabelFactory()
+    elif grammar == 'void':
+        return VoidLabelFactory()
+    else:
+        raise ValueError(
+            f'illegal label grammar "{grammar}"')
+
+
+class DataType:
+    def __init__(self, data):
+        self._data = data
+
+    @property
+    def json(self):
+        return self._data
+
+    def __str__(self):
+        return yaml.dump(self._data)
+
+
 class Tag:
-    _default_types = {
-        'morph': 'strs',
-        'feats': 'strs'
-    }
-
-    @staticmethod
-    def _default_label_type(tagger):
-        return Tag._default_types.get(tagger, 'str')
-
-    def __init__(self, tagger, name: Name, label_type=None):
+    def __init__(self, tagger, name: Name, tfms=None):
         self._tagger = tagger
         self._name = name
-        if label_type:
-            self._label_type = label_type
-        else:
-            self._label_type = Tag._default_label_type(name.internal)
+        self._tfms = tfms or []
 
-    def to(self, name: str = None, label_type: str = None):
+    def transform(self, f):
+        return Tag(self._tagger, self._name, self._tfms + [f])
+
+    def to(self, name: str = None):
         if name is None:
             new_name = self._name
         else:
             new_name = Name(self._name.internal, name)
-        if label_type is None:
-            label_type = self._label_type
-        return Tag(self._tagger, new_name, label_type)
+        return Tag(self._tagger, new_name, self._tfms)
 
     @property
     def tagger(self):
@@ -60,9 +174,17 @@ class Tag:
     def name(self):
         return self._name.external
 
+    @cached_property
+    def dtype(self):
+        return DataType(self._tagger.signature['grammar'].get(
+            self._name.internal))
+
     @property
-    def label_type(self):
-        return self._label_type
+    def _label_factory(self):
+        f = make_label_factory(self.dtype.json)
+        if self._tfms:
+            f = TransformedLabelFactory(f, self._tfms)
+        return f
 
     def __str__(self):
         return self._name.external
@@ -171,7 +293,12 @@ class Group:
 
     @property
     def text(self):
-        return self._data['text']
+        root = self._data['root']
+        if root['type'] == 'text':
+            return root['text']
+        else:
+            raise ValueError(
+                f"cannot get text from '{root['type']}' root")
 
     @cached_property
     def text_hash_code(self):

@@ -90,7 +90,11 @@ class NLP:
         raw_data, raw_vectors_data = built_data
 
         data = {
-            'text': item_data['text'],
+            'root': {
+                'type': 'text',
+                'text': item_data['text']
+                # FIXME tags
+            },
             'taggers': [raw_data],
             'vectors': [raw_vectors_data]
         }

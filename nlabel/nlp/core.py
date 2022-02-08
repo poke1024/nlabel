@@ -28,24 +28,32 @@ def labels_from_data(data, split=None):
     if data is None or not data:
         return []
     elif split:
-        return [{'value': x} for x in sorted(data.split(split))]
+        return data.split(split)
     else:
-        return [{
-            'value': data
-        }]
+        return data
+
+
+def apply_renames(kv, renames):
+    if not renames:
+        return kv
+    else:
+        return dict((renames.get(k, k), v) for k, v in kv.items())
 
 
 class TagBuilder:
-    def __init__(self, name, taggers, save_vectors=None):
+    def __init__(self, name, taggers, grammar, save_vectors=None):
         self._name = name
         self._taggers = taggers
         self._save_vectors = save_vectors
         self._vectors = [] if save_vectors else None
+        self._grammar = grammar
 
     def __len__(self):
         return len(self._taggers)
 
     def append(self, data, vector=None):
+        # data["data"] conforms to self._grammar
+
         self._taggers.append(data)
 
         if self._vectors is not None:
@@ -70,11 +78,15 @@ class TagBuilder:
 
 
 class Builder:
-    def __init__(self, guid, signature, taggers=None, vectors: dict = None, renames=None):
+    def __init__(self, guid, signature, vectors: dict = None, renames=None):
         renames = renames if renames else {}
+
+        self._grammar = signature['grammar']
+        taggers = self._grammar.keys()
         self._taggers_data = dict(
             (renames.get(name, name), []) for name in taggers) if taggers else {}
         self._renames = renames
+
         self._vectors = dict((renames.get(k, k), v) for k, v in vectors.items()) if vectors else dict()
         self._vectors_data = {}
         self._data = {
@@ -86,6 +98,10 @@ class Builder:
     @property
     def data(self):
         return self._data
+
+    @property
+    def signature(self):
+        return self._data['tagger']
 
     @property
     def vectors_data(self):
@@ -107,7 +123,10 @@ class Builder:
         if force_empty and len(tagger) > 0:
             raise RuntimeError(f"tagger '{name}' not empty")
 
-        return TagBuilder(name, tagger, save_vectors)
+        return TagBuilder(
+            name, tagger,
+            grammar=self._grammar.get(name),
+            save_vectors=save_vectors)
 
 
 class Tagger:

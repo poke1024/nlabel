@@ -2,9 +2,9 @@
 
 > nlabel is currently alpha software and in an early stage of development.
 
-nlabel is a library for generating, storing and
-retrieving tagging information and embedding vectors
-from various nlp libraries through a unified interface.
+nlabel is a content-agnostic library for generating,
+storing and retrieving tagging information and embedding
+vectors from various nlp libraries through a unified interface.
 
 nlabel is also a system to collate results from various
 taggers and keep track of used models and configurations.

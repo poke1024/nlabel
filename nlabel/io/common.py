@@ -3,6 +3,7 @@ import numpy as np
 import shutil
 import orjson
 import hashlib
+import difflib
 
 from numpy import searchsorted
 from pathlib import Path
@@ -40,8 +41,12 @@ class AbstractSpanFactory:
 
 
 class TagError(AttributeError):
-    def __init__(self, tag):
-        super().__init__(f"span has no tag '{tag}'")
+    def __init__(self, tag, available=None):
+        if available:
+            maybe = difflib.get_close_matches(tag, available, n=1)[0]
+            super().__init__(f"span has no tag '{tag}', did you mean '{maybe}'?")
+        else:
+            super().__init__(f"span has no tag '{tag}'")
 
 
 def binary_searcher(values, dtype=np.int32):

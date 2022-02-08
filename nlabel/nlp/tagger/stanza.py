@@ -1,14 +1,11 @@
-from nlabel.nlp.core import Builder, Tagger, labels_from_data
+from nlabel.nlp.core import Builder, Tagger, labels_from_data, apply_renames
 
 import logging
 
 
 class StanzaBuilder(Builder):
     def __init__(self, guid, signature, doc, renames=None):
-        super().__init__(guid, signature, (
-            'sentence', 'token', 'lemma',
-            'upos', 'xpos', 'feats',
-            'dep', 'ent_bioes', 'ent'), renames=renames)
+        super().__init__(guid, signature, renames=renames)
 
         self._doc = doc
 
@@ -45,7 +42,7 @@ class StanzaBuilder(Builder):
                     tagger.append({
                         'start': token.start_char,
                         'end': token.end_char,
-                        'labels': labels_from_data(data, split)
+                        'data': labels_from_data(data, split)
                     })
                 else:
                     parent_i = len(tagger)
@@ -58,7 +55,7 @@ class StanzaBuilder(Builder):
                         data = word.to_dict().get(attr)
                         tagger.append({
                             'parent': parent_i,
-                            'labels': labels_from_data(data, split)
+                            'data': labels_from_data(data, split)
                         })
 
         tagger.done()
@@ -71,9 +68,7 @@ class StanzaBuilder(Builder):
                 tagger.append({
                     'start': ent.start_char,
                     'end': ent.end_char,
-                    'labels': [{
-                        'value': ent.type
-                    }]
+                    'data': ent.type
                 })
 
         tagger.done()
@@ -91,9 +86,7 @@ class StanzaBuilder(Builder):
                 tagger.append({
                     'start': word.start_char,
                     'end': word.end_char,
-                    'labels': [{
-                        'value': word.deprel
-                    }],
+                    'data': word.deprel,
                     'parent': parent
                 })
 
@@ -120,7 +113,7 @@ class StanzaTagger(Tagger):
         if require_gpu:
             logging.warning("require_gpu was ignored.")
 
-        self._prototype = {
+        self._signature = {
             'type': 'nlp',
             'env': self._env_data(),
             'library': {
@@ -129,27 +122,41 @@ class StanzaTagger(Tagger):
             },
             'model': {
                 'lang': nlp.lang
-            }
+            },
+            'grammar': apply_renames({
+                'sentence': 'void',
+                'token': 'void',
+                'lemma': 'str',
+                'upos': 'str',
+                'xpos': 'str',
+                'feats': {
+                    'type': 'list',
+                    'member': 'str'
+                },
+                'dep': 'str',
+                'ent_bioes': 'str',
+                'ent': 'str'
+            }, renames)
         }
 
         if renames:
-            self._prototype['renames'] = renames
+            self._signature['renames'] = renames
 
         if meta:
-            self._prototype['meta'] = meta
+            self._signature['meta'] = meta
 
         self._nlp = nlp
         self._renames = renames
 
     @property
     def signature(self):
-        return self._prototype
+        return self._signature
 
     def process(self, text):
         doc = self._nlp(text)
 
         builder = StanzaBuilder(
-            self.guid, self._prototype, doc, renames=self._renames)
+            self.guid, self._signature, doc, renames=self._renames)
 
         builder.add_sent()
         builder.add_token()

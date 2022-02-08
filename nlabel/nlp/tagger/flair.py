@@ -1,6 +1,6 @@
 import contextlib
 
-from nlabel.nlp.core import Builder, Tagger
+from nlabel.nlp.core import Builder, Tagger, apply_renames
 from nlabel.embeddings import EmbedderFactory as AbstractEmbedderFactory, Embedding
 
 import logging
@@ -94,9 +94,20 @@ def _make_embedder(vectors):
             yield NoOpEmbedder()
 
 
+def _label_types(sentence):
+    label_types = []
+    for token in sentence:
+        for annotation in token.annotation_layers.keys():
+            if annotation not in label_types:
+                label_types.append(annotation)
+    return label_types
+
+
 class FlairBuilder(Builder):
     def __init__(self, guid, signature, sents, vectors=None, renames=None):
-        super().__init__(guid, signature, vectors=vectors, renames=renames)
+        super().__init__(
+            guid, signature.copy(),
+            vectors=vectors, renames=renames)
 
         self._sents = sents
 
@@ -124,13 +135,21 @@ class FlairBuilder(Builder):
         token_tagger.done()
 
     def add_tags(self, sentence):
-        label_types = []
-        for token in sentence:
-            for annotation in token.annotation_layers.keys():
-                if annotation not in label_types:
-                    label_types.append(annotation)
+        grammar = self.signature['grammar']
 
-        for label_type in label_types:
+        for label_type in _label_types(sentence):
+            if label_type not in grammar:
+                grammar[self._renames.get(label_type, label_type)] = {
+                    'type': 'list',
+                    'member': {
+                        'type': 'structure',
+                        'members': {
+                            'value': 'str',
+                            'score': 'float32'
+                        }
+                    }
+                }
+
             tagger = self.tagger(label_type, force_empty=False)
 
             data = [x.to_dict() for x in sentence.get_spans(label_type)]
@@ -147,7 +166,7 @@ class FlairBuilder(Builder):
                 tagger.append({
                     'start': sentence.start_pos + record['start_pos'],
                     'end': sentence.start_pos + record['end_pos'],
-                    'labels': labels
+                    'data': labels
                 })
 
             tagger.done()
@@ -238,7 +257,12 @@ class FlairTagger(Tagger):
 
         sentence_splitter = _create_sentence_splitter(sentence_splitter, from_spacy)
 
-        self._prototype = {
+        grammar = {
+            'sentence': 'void',
+            'token': 'void'
+        }
+
+        self._signature = {
             'type': 'nlp',
             'env': self._env_data(),
             'library': {
@@ -249,17 +273,19 @@ class FlairTagger(Tagger):
                 'lang': _detect_tagger_lang(tagger),
                 'taggers': sorted(tagger.name_to_tagger.keys()),
                 'sentence_splitter': sentence_splitter.name
-            }
+            },
+            'grammar': apply_renames(grammar, renames)
         }
 
         if self._vectors:
-            self._prototype['vectors'] = dict((k, v.to_dict()) for k, v in self._vectors.items())
+            self._signature['vectors'] = dict(
+                (k, v.to_dict()) for k, v in self._vectors.items())
 
         if renames:
-            self._prototype['renames'] = renames
+            self._signature['renames'] = renames
 
         if meta:
-            self._prototype['meta'] = meta
+            self._signature['meta'] = meta
 
         self._nlp = tagger
         self._sentence_splitter = sentence_splitter
@@ -267,7 +293,7 @@ class FlairTagger(Tagger):
 
     @property
     def signature(self):
-        return self._prototype
+        return self._signature
 
     def _split_sents(self, text):
         # stripping whitespace from the right suppresses
@@ -284,7 +310,7 @@ class FlairTagger(Tagger):
         sents = self._split_sents(text)
 
         builder = FlairBuilder(
-            self.guid, self._prototype, sents,
+            self.guid, self._signature, sents,
             vectors=self._vectors,
             renames=self._renames)
 

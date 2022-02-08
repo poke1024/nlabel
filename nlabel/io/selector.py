@@ -75,9 +75,7 @@ def select_taggers(taggers, selector):
 
 
 class Selector:
-    def __init__(self, tags, label_factories):
-        self._label_factories = label_factories
-
+    def __init__(self, tags):
         self._by_guid = collections.defaultdict(list)
         name_clashes = collections.defaultdict(list)
 
@@ -99,9 +97,7 @@ class Selector:
             for tag in tags:
                 tag_data = tagger['tags'].get(tag._name.internal)
                 if tag_data is not None:
-                    form = TagForm(
-                        tag, tag._name,
-                        self._label_factories[tag.label_type])
+                    form = TagForm(tag)
                     tag_forms[tag._name.external] = form
                     add(tagger_index, form, tag_data)
 
@@ -153,7 +149,7 @@ class Profile:
         return self._tags[tagger]
 
 
-def make_selector(label_factories, selectors):
+def make_selector(selectors):
     from nlabel.io.json.group import Tagger, Tag
 
     tags = []
@@ -167,4 +163,4 @@ def make_selector(label_factories, selectors):
             raise ValueError(
                 f"expected Tagger or Tag, got {x}")
 
-    return Selector(tags, label_factories)
+    return Selector(tags)

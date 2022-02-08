@@ -1,6 +1,4 @@
-from collections.abc import Iterable
-from ..core import Builder as AbstractBuilder, Tagger, labels_from_data
-from nlabel.embeddings import NativeEmbedding
+from ..core import Builder as AbstractBuilder, Tagger, labels_from_data, apply_renames
 from nlabel.embeddings import EmbedderFactory as AbstractEmbedderFactory
 
 import contextlib
@@ -72,10 +70,7 @@ def _make_embedder(vectors, name):
 
 class Builder(AbstractBuilder):
     def __init__(self, guid, signature, doc, vectors=None, renames=None):
-        super().__init__(guid, signature, (
-            'sentence', 'token', 'lemma',
-            'pos', 'tag', 'morph',
-            'dep', 'ent_iob', 'ent'), vectors, renames)
+        super().__init__(guid, signature, vectors, renames)
 
         self._doc = doc
         self._json_data = doc.to_json()
@@ -115,7 +110,7 @@ class Builder(AbstractBuilder):
                 tagger.append({
                     'start': token['start'],
                     'end': token['end'],
-                    'labels': labels_from_data(data, split)
+                    'data': labels_from_data(data, split)
                 })
 
         tagger.done()
@@ -133,9 +128,7 @@ class Builder(AbstractBuilder):
             tagger.append({
                 'start': token.idx,
                 'end': token.idx + len(token.text),
-                'labels': [{
-                    'value': value
-                }]
+                'data': value
             })
 
         tagger.done()
@@ -150,9 +143,7 @@ class Builder(AbstractBuilder):
             tagger.append({
                 'start': ent.start_char,
                 'end': ent.end_char,
-                'labels': [{
-                    'value': ent.label_
-                }]
+                'data': ent.label_
             }, vector=lambda: ent.vector)
 
         tagger.done()
@@ -164,9 +155,7 @@ class Builder(AbstractBuilder):
             tagger.append({
                 'start': token['start'],
                 'end': token['end'],
-                'labels': [{
-                    'value': token['dep']
-                }],
+                'data': token['dep'],
                 'parent': token['head']
             })
 
@@ -206,7 +195,7 @@ class SpacyTagger(Tagger):
         else:
             raise ValueError("expected vectors to be a list of names or a dict")
 
-        self._prototype = {
+        self._signature = {
             'type': 'nlp',
             'env': self._env_data(),
             'library': {
@@ -217,24 +206,38 @@ class SpacyTagger(Tagger):
                 'lang': nlp.meta['lang'],
                 'name': nlp.meta['name'],
                 'version': nlp.meta['version']
-            }
+            },
+            'grammar': apply_renames({
+                'sentence': 'void',
+                'token': 'void',
+                'lemma': 'str',
+                'pos': 'str',
+                'tag': 'str',
+                'morph': {
+                    'type': 'list',
+                    'member': 'str'
+                },
+                'dep': 'str',
+                'ent_iob': 'str',
+                'ent': 'str'
+            }, renames)
         }
 
         if vectors:
-            self._prototype['vectors'] = dict((k, v.to_dict()) for k, v in vectors.items())
+            self._signature['vectors'] = dict((k, v.to_dict()) for k, v in vectors.items())
 
         if renames:
-            self._prototype['renames'] = renames
+            self._signature['renames'] = renames
 
         if meta:
-            self._prototype['meta'] = meta
+            self._signature['meta'] = meta
 
         self._nlp = nlp
         self._vectors = vectors
 
     @property
     def signature(self):
-        return self._prototype
+        return self._signature
 
     def _has(self, klass):
         for k, v in self._nlp.pipeline:
@@ -246,7 +249,7 @@ class SpacyTagger(Tagger):
         import spacy
 
         builder = Builder(
-            self.guid, self._prototype, doc,
+            self.guid, self._signature, doc,
             vectors=self._vectors,
             renames=self._renames)
 

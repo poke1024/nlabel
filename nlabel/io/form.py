@@ -1,11 +1,11 @@
 from nlabel.io.json.name import Name
+from cached_property import cached_property
 
 
 class TagForm:
-    def __init__(self, tag, name, label_factory):
+    def __init__(self, tag, name=None):
         self._tag = tag
-        self._name = name
-        self._label_factory = label_factory
+        self._name = tag._name if name is None else name
 
     def inflections(self):
         yield self
@@ -23,30 +23,22 @@ class TagForm:
     def is_plural(self):
         return False
 
-    @property
+    @cached_property
     def label_factory(self):
-        return self._label_factory
+        return self._tag._label_factory
 
-    @property
-    def empty_label(self):
-        return self._label_factory.empty_label
+    def make_empty_label(self, kind):
+        return self.label_factory.make_empty_label(kind)
 
-    def make_label(self, *args):
-        return self._label_factory.make_label(*args)
-
-    def make_label_from_value(self, *args):
-        return self._label_factory.make_label_from_value(*args)
-
-    def make_label_from_values(self, *args):
-        return self._label_factory.make_label_from_values(*args)
+    def make_label(self, data, kind):
+        return self.label_factory.make_label(data, kind)
 
     def pluralize(self):
-        return PluralTagForm(
-            self._tag, self._name, self._label_factory)
+        return PluralTagForm(self._tag, self._name)
 
 
 class PluralTagForm(TagForm):
-    def __init__(self, tag, name, label_factory):
+    def __init__(self, tag, name):
         external_name = name.external
         if external_name.endswith('s'):
             plural_name = external_name + '_tags'
@@ -54,8 +46,7 @@ class PluralTagForm(TagForm):
             plural_name = external_name + 's'
         super().__init__(
             tag,
-            Name(name.internal, plural_name),
-            label_factory)
+            Name(name.internal, plural_name))
         self._singular_name = name
 
     @property
@@ -68,7 +59,7 @@ class PluralTagForm(TagForm):
 
     def singularize(self):
         return TagForm(
-            self._tag, self._singular_name, self._label_factory)
+            self._tag, self._singular_name)
 
 
 def inflected_tag_forms(tag_forms):
