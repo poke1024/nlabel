@@ -221,7 +221,7 @@ class ResultFactory:
         assert 'error' not in json_data['taggers'][0]
 
         kept_keys = set(json_data.keys()) - {
-            'external_key', 'text', 'meta'}
+            'external_key', 'root', 'meta'}
 
         json_data = dict(
             (k, json_data[k]) for k in kept_keys)

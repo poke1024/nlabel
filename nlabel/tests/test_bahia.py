@@ -2,7 +2,6 @@ from nlabel.tests import TestCase
 from pathlib import Path
 
 import nlabel
-import spacy
 import tempfile
 
 

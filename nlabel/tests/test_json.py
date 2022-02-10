@@ -38,16 +38,16 @@ class TestDocument(TestCase):
 			for i, sentence in enumerate(sentences):
 				ref_nlp.predict(sentence)
 				for j, ent in enumerate(sentence.get_spans('ent')):
-					ref_data[(i, j, 'ent')] = (ent.text, ent.tag)  # ent.score
+					ref_data[(i, j, 'ent')] = (ent.text, ent.tag, ent.score)
 				for j, pos in enumerate(sentence.get_spans('pos')):
 					ref_data[(i, j, 'pos')] = (pos.text, pos.tag)
 
 			test_data = {}
 			for i, sentence in enumerate(test_nlp(text).sentences):
 				for j, ent in enumerate(sentence.ents):
-					test_data[(i, j, 'ent')] = (ent.text, ent.label)
+					test_data[(i, j, 'ent')] = (ent.text, ent.labels[0].value, ent.labels[0].score)
 				for j, token in enumerate(sentence.tokens):
-					test_data[(i, j, 'pos')] = (token.text, token.pos)
+					test_data[(i, j, 'pos')] = (token.text, token.pos[0].value)
 
 			self.assertEqual(ref_data, test_data)
 

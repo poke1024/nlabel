@@ -2,7 +2,6 @@ from nlabel.tests import TestCase
 from pathlib import Path
 
 import nlabel
-import spacy
 import tempfile
 
 
@@ -20,6 +19,8 @@ class TestCarenero(TestCase):
 
 				with nlabel.open(path, mode="r", engine="carenero") as archive:
 					self.assertEqual(len(archive.taggers), 1)
+
+					self.assertEqual(archive._test.first_text(), text)
 
 					for doc in archive.iter(archive.taggers[0], progress=False):
 						self._check_output(ref_nlp(text), doc, ref_lib='spacy')

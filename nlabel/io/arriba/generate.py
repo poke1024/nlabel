@@ -353,7 +353,11 @@ class Archive:
     def add_doc(self, doc, external_key=None):
         data, vectors_data = split_data(doc.data)
 
-        span_factory = SpanFactory(data["text"])
+        if data["root"]["type"] != "text":
+            raise NotImplementedError("arriba support for non-text is missing")
+        data_text = data["root"]["text"]
+
+        span_factory = SpanFactory(data_text)
         temp_taggers = {}
 
         for nlp_data, nlp_vectors_data in zip(data["taggers"], vectors_data):
@@ -384,7 +388,7 @@ class Archive:
             for tagger in temp_taggers.values():
                 tagger.save_vectors(reordered_span_ids, group)
 
-        utf8_text = data["text"].encode("utf8")
+        utf8_text = data_text.encode("utf8")
         self._add_index(utf8_text, external_key)
 
         p_doc = archive_proto.Document.new_message(

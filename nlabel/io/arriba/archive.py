@@ -42,7 +42,7 @@ class Iterator:
         self._traversal_limit_multiplier = traversal_limit_multiplier
         self._vf = vf
 
-        selector = make_selector(label_factories, selectors)
+        selector = make_selector(selectors)
 
         codes = self._archive.codes
         tagger_specs = []

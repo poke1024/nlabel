@@ -33,7 +33,10 @@ def _result_to_doc(result, tag_ids=None, vectors=True, migrate=None):
     if migrate is not None:
         json_data = migrate(json_data)
 
-    json_data['text'] = text.text
+    json_data['root'] = {
+        'type': 'text',
+        'text': text.text
+    }
     if text.meta:
         json_data['meta'] = orjson.loads(text.meta)
     json_data['guid'] = text.guid
@@ -149,6 +152,14 @@ class Exporter:
         else:
             for doc in docs:
                 yield doc
+
+
+class Test:
+    def __init__(self, session):
+        self._session = session
+
+    def first_text(self):
+        return self._session.query(Text).first().text
 
 
 class Archive(AbstractArchive):
@@ -284,6 +295,10 @@ class Archive(AbstractArchive):
             return False
 
         return True
+
+    @property
+    def _test(self):
+        return Test(self._session)
 
     def _groups(self, progress=True, **kwargs):
         exporter = Exporter(self, migrate=self._migrate, **kwargs)

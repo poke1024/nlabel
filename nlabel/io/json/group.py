@@ -298,7 +298,7 @@ class Group:
             return root['text']
         else:
             raise ValueError(
-                f"cannot get text from '{root['type']}' root")
+                f"cannot get text from root '{root['type']}'")
 
     @cached_property
     def text_hash_code(self):
