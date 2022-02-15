@@ -1,7 +1,10 @@
 import collections
 import numpy as np
+import orjson
+from cached_property import cached_property
 
 from nlabel.io.guid import tagger_guid
+from nlabel.io.common import text_hash_code
 
 
 try:
@@ -143,4 +146,13 @@ class Tagger:
         return (self.process(x) for x in texts)
 
 
-Text = collections.namedtuple('Text', ['text', 'external_key', 'meta'])
+class Text(collections.namedtuple('Text', ['text', 'external_key', 'meta'])):
+    @cached_property
+    def text_hash_code(self):
+        return text_hash_code(self.text)
+
+    @cached_property
+    def meta_json(self):
+        return orjson.dumps(
+            self.meta,
+            option=orjson.OPT_SORT_KEYS).decode("utf8") if self.meta else ''

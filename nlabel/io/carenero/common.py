@@ -327,7 +327,7 @@ def gen_message(nlp: CoreNLP, text: CoreText):
 
     if message is None:
         message = dict(
-            text=text, doc=doc.collection, err=None)
+            text=text, doc=doc.group, err=None)
 
     return message
 
