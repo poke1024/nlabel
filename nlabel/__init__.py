@@ -1,5 +1,8 @@
-import capnp
-capnp.remove_import_hook()
+try:
+	import capnp
+	capnp.remove_import_hook()
+except ImportError:
+	pass
 
 import nlabel.embeddings
 

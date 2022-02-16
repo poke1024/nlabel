@@ -2,8 +2,8 @@ parsimonious
 tqdm
 sqlalchemy
 orjson
-pycapnp
 cached_property
 numpy
 h5py
 lxml
+pyyaml

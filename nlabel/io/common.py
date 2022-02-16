@@ -211,19 +211,18 @@ class ArchiveInfo:
 
 @contextlib.contextmanager
 def open_archive(path, mode=None, engine=None, exist_ok=False, **kwargs):
-    from nlabel.io.carenero.archive import open_archive as open_carenero_archive
-    from nlabel.io.bahia.archive import open_archive as open_bahia_archive
-    from nlabel.io.arriba.archive import open_archive as open_arriba_archive
-
     info = ArchiveInfo(path, mode=mode, engine=engine, exist_ok=exist_ok)
 
     if info.engine == 'carenero':
+        from nlabel.io.carenero.archive import open_archive as open_carenero_archive
         with open_carenero_archive(info, **kwargs) as x:
             yield x
     elif info.engine == 'bahia':
+        from nlabel.io.bahia.archive import open_archive as open_bahia_archive
         with open_bahia_archive(info, **kwargs) as x:
             yield x
     elif info.engine == 'arriba':
+        from nlabel.io.arriba.archive import open_archive as open_arriba_archive
         with open_arriba_archive(info, **kwargs) as x:
             yield x
     else:
